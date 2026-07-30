@@ -64,8 +64,7 @@ const state = {
     { id: "h4", name: "Reliance Industries Limited", shortName: "RELIANCE", category: "equity", subCategory: "equity", invested: 66000, currentValue: 69200, units: 28.0, returnPct: 4.85 },
     { id: "h5", name: "Digital Gold (PhonePe Safegold)", shortName: "GOLD", category: "gold", subCategory: "gold", invested: 30000, currentValue: 34000, units: 5.86, returnPct: 13.33 },
     { id: "h6", name: "SBI Tax Saving FD - 5 Year", shortName: "SBIFD", category: "fd", subCategory: "debt", invested: 40000, currentValue: 40000, units: 1.0, returnPct: 0.00 },
-    { id: "h7", name: "NPS Tier 1 Scheme E (SBI)", shortName: "NPS", category: "nps", subCategory: "hybrid", invested: 15000, currentValue: 14000, units: 150.0, returnPct: -6.67 },
-    { id: "h8", name: "Bitcoin (CoinDCX)", shortName: "BTC", category: "crypto", subCategory: "crypto", invested: 10000, currentValue: 9500, units: 0.0035, returnPct: -5.00 }
+    { id: "h7", name: "NPS Tier 1 Scheme E (SBI)", shortName: "NPS", category: "nps", subCategory: "hybrid", invested: 15000, currentValue: 14000, units: 150.0, returnPct: -6.67 }
   ],
   
   transactions: [
@@ -1480,7 +1479,7 @@ function renderProfile() {
     } else if (state.user.riskProfile === 'Moderate') {
       riskDesc.textContent = "You seek balanced returns over a medium term. Suggested allocation comprises 50% equities / direct funds, 30% Fixed Deposits & government bonds, and 20% gold & alternate sectors.";
     } else {
-      riskDesc.textContent = "You focus on long-term compound gains, accepting temporary high volatility. Model allocation recommends 75% equity, 15% debt & bonds, and 10% crypto or digital gold.";
+      riskDesc.textContent = "You focus on long-term compound gains, accepting temporary high volatility. Model allocation recommends 75% equity, 15% debt & bonds, and 10% digital gold or commodities.";
     }
   }
 }
@@ -1901,7 +1900,6 @@ function initPortfolioChart() {
   if (filterType === 'gold') strokeColor = '#f59e0b';
   if (filterType === 'fd') strokeColor = '#8b5cf6';
   if (filterType === 'nps') strokeColor = '#06b6d4';
-  if (filterType === 'crypto') strokeColor = '#ec4899';
   
   // Setup Gradient Fill
   const chartCtx = ctx.getContext('2d');
@@ -2991,8 +2989,7 @@ Here is your current diversification status:
 - **Mutual Funds / Indexes:** ₹2,50,700 (~52%)
 - **Direct Equities:** ₹1,57,610 (~33%)
 - **Digital Gold:** ₹34,000 (~7%)
-- **Fixed Deposits / NPS:** ₹54,000 (~11%)
-- **Cryptocurrencies:** ₹9,500 (~2%)\n
+- **Fixed Deposits / NPS:** ₹54,000 (~11%)\n
 **AI Insight:** Under your Moderate risk guidelines, you are slightly overweight in direct equities and index funds (totaling 85% vs the 50% target). Your **Risk Alignment** rating is **6/10**. We recommend routing future capitals into Fixed Deposits or debt funds to safeguard your margin.`;
   }
   
