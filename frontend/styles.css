@@ -22,8 +22,6 @@
   /* Purple */
   --color-nps: #0891b2;
   /* Cyan */
-  --color-crypto: #db2777;
-  /* Pink */
 
   --color-success: #059669;
   --color-warning: #d97706;
@@ -237,7 +235,7 @@ body {
   width: 28px;
   height: 28px;
   border-radius: 999px;
-  background: linear-gradient(135deg, var(--color-fd), var(--color-crypto));
+  background: linear-gradient(135deg, var(--color-fd), #db2777);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1474,10 +1472,6 @@ body {
   background: var(--color-nps);
 }
 
-.allocation-seg.crypto {
-  background: var(--color-crypto);
-}
-
 .allocation-list {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -1526,10 +1520,6 @@ body {
 
 .allocation-dot.nps {
   background: var(--color-nps);
-}
-
-.allocation-dot.crypto {
-  background: var(--color-crypto);
 }
 
 .allocation-val {
@@ -1636,12 +1626,6 @@ body {
   background: rgba(6, 182, 212, 0.2);
   color: var(--color-nps);
   border: 1px solid rgba(6, 182, 212, 0.3);
-}
-
-.holding-avatar.crypto {
-  background: rgba(236, 72, 153, 0.2);
-  color: var(--color-crypto);
-  border: 1px solid rgba(236, 72, 153, 0.3);
 }
 
 .holding-details,
@@ -1972,7 +1956,7 @@ body {
 }
 
 .goal-icon-wrapper.car {
-  color: var(--color-crypto);
+  color: #db2777;
   background: rgba(236, 72, 153, 0.15);
 }
 
@@ -2035,7 +2019,7 @@ body {
 }
 
 .goal-progress-fill.car {
-  background: var(--color-crypto);
+  background: #db2777;
 }
 
 .goal-progress-fill.retire {
@@ -2101,7 +2085,7 @@ body {
 }
 
 .explainer-cat.mf {
-  color: var(--color-crypto);
+  color: var(--color-mf);
 }
 
 .explainer-title {
@@ -2730,7 +2714,7 @@ body {
   width: 70px;
   height: 70px;
   border-radius: 999px;
-  background: linear-gradient(135deg, var(--color-fd), var(--color-crypto));
+  background: linear-gradient(135deg, var(--color-fd), #db2777);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3109,11 +3093,6 @@ input:checked+.slider:before {
 .portfolio-asset-logo.nps {
   background: rgba(6, 182, 212, 0.2);
   color: var(--color-nps);
-}
-
-.portfolio-asset-logo.crypto {
-  background: rgba(236, 72, 153, 0.2);
-  color: var(--color-crypto);
 }
 
 /* ── Gen Button Fancy Styles ────────────────────────────────────────── */
@@ -4770,7 +4749,7 @@ input:checked+.slider:before {
   width: 60px;
   height: 60px;
   border-radius: 999px;
-  background: linear-gradient(135deg, var(--color-fd), var(--color-crypto));
+  background: linear-gradient(135deg, var(--color-fd), #db2777);
   display: flex;
   align-items: center;
   justify-content: center;
