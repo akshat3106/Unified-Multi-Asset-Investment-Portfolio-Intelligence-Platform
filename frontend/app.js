@@ -1,7 +1,7 @@
 // AssetBridge Unified Investing Dashboard - App Core Logic
 //0. FIREBASE AUTH
 // 1. Firebase SDK Imports
-import { searchStocks, searchMutualFunds, getStockQuote, getStockChart, getMarketIndices, streamChatMessage, getAuditLog } from './api/index.js';
+import { searchStocks, searchMutualFunds, getStockQuote, getStockChart, getMarketIndices, streamChatMessage, getAuditLog, setAuthTokenProvider, syncUser } from './api/index.js';
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { 
   getAuth, 
@@ -29,6 +29,9 @@ const auth = getAuth(firebaseApp);
 // 3. Track Auth State Changes and sync with AssetBridge state
 onAuthStateChanged(auth, (user) => {
   if (user) {
+    // Configure API HTTP client to attach Firebase token to backend calls
+    setAuthTokenProvider(() => user.getIdToken());
+
     // Update active user state from Firebase account
     state.user.fullName = user.displayName || user.email.split('@')[0];
     state.user.firstName = state.user.fullName.split(' ')[0];
@@ -40,12 +43,19 @@ onAuthStateChanged(auth, (user) => {
     if (sidebarUserName) sidebarUserName.textContent = state.user.fullName;
     if (sidebarAvatar) sidebarAvatar.textContent = state.user.fullName.split(' ').map(n => n[0]).join('').toUpperCase();
 
+    // Synchronize user profile with backend database
+    syncUser().catch((err) => console.warn('User sync notice:', err.message));
+
     renderAll();
   } else {
+    setAuthTokenProvider(null);
     // User is signed out -> Open login modal automatically
     document.getElementById('modal-auth').classList.add('active');
   }
 });
+
+// Helper for programmatic sign out
+window.assetBridgeSignOut = () => signOut(auth);
 // 1. Initial State Definition
 const state = {
   user: {

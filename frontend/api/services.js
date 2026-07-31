@@ -15,6 +15,10 @@ export function checkHealth() {
 
 // ─── User / Profile ───────────────────────────────────────────────────────────
 
+export function syncUser() {
+  return apiRequest(ENDPOINTS.userSync, { method: 'POST' });
+}
+
 /**
  * GET /api/v1/users/me
  * @returns {Promise<{
