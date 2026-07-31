@@ -7,8 +7,7 @@ def extarct_pdf_text(pdf_path):
     text = pymupdf4llm.to_markdown(str(pdf_path))
     return text
 
-# This function reads every pdf
-
+# This function reads every pdf and plain-text file
 def load_document(data_folder):
     documents=[]
 
@@ -20,4 +19,14 @@ def load_document(data_folder):
             "file_path":str(pdf_file),
             "text":text
         })
+
+    for txt_file in Path(data_folder).rglob("*.txt"):
+        text=txt_file.read_text(encoding="utf-8")
+
+        documents.append({
+            "file_name":txt_file.name,
+            "file_path":str(txt_file),
+            "text":text
+        })
+
     return documents

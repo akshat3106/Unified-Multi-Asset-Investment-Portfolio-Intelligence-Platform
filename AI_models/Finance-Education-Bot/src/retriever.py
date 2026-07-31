@@ -3,7 +3,7 @@
 from .embedder import generate_embeddings
 from .vector_store import search_chunk
 
-def retrieve_context(query, top_k=5):
+def retrieve_context(query, top_k=8):
     query_embedding = generate_embeddings([query])
 
     results = search_chunk(

@@ -1,2 +1,17 @@
 node_modules/
 .env
+
+# Raw source PDFs for the Finance Education Bot's knowledge base (117MB+,
+# one file alone exceeds GitHub's practical size limits). The bot's own
+# data/ folder (a copy used to build the vector index) is already ignored
+# via AI_models/Finance-Education-Bot/.gitignore.
+AI_models/documents/
+
+# Python virtual environments, wherever they end up
+.venv/
+__pycache__/
+*.pyc
+
+# Local vector DB / audit log artifacts
+AI_models/**/chroma_db/
+AI_models/**/audit_log.jsonl

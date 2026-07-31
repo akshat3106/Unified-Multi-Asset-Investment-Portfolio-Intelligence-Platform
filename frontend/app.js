@@ -1,7 +1,7 @@
 // AssetBridge Unified Investing Dashboard - App Core Logic
 //0. FIREBASE AUTH
 // 1. Firebase SDK Imports
-import { searchStocks, searchMutualFunds, getStockQuote, getStockChart, getMarketIndices } from './api/index.js';
+import { searchStocks, searchMutualFunds, getStockQuote, getStockChart, getMarketIndices, streamChatMessage, getAuditLog } from './api/index.js';
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { 
   getAuth, 
@@ -2853,48 +2853,86 @@ function renderQuizModalFlow() {
 }
 
 // 12. AI Finance Buddy Chatbot
+const chatSessionId = `session-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
 function setupChatbot() {
   const sendBtn = document.getElementById('chat-send-btn');
   const chatInput = document.getElementById('chat-input-field');
   const chatWindow = document.getElementById('chat-messages');
-  
+
   if (!sendBtn || !chatInput || !chatWindow) return;
-  
+
+  const TYPEWRITER_MS_PER_CHAR = 15; // ~65 chars/sec
+
+  const askBuddy = async (txt) => {
+    appendChatMessage("user", txt);
+    showChatbotTypingIndicator();
+
+    let bubble = null;
+    let fullText = '';
+    let shownLength = 0;
+    let typewriterTimer = null;
+
+    const container = document.getElementById('chat-messages');
+
+    const revealNextChar = () => {
+      if (shownLength >= fullText.length) {
+        typewriterTimer = null;
+        return;
+      }
+      shownLength++;
+      bubble.textContent = fullText.slice(0, shownLength);
+      container.scrollTop = container.scrollHeight;
+      typewriterTimer = setTimeout(revealNextChar, TYPEWRITER_MS_PER_CHAR);
+    };
+
+    try {
+      await streamChatMessage({ message: txt, sessionId: chatSessionId }, (chunk) => {
+        if (!bubble) {
+          removeChatbotTypingIndicator();
+          bubble = appendChatMessage("ai", "");
+        }
+        fullText += chunk;
+        if (!typewriterTimer) revealNextChar();
+      });
+
+      // Let the typewriter finish revealing any text still queued up.
+      while (shownLength < fullText.length) {
+        await new Promise((resolve) => setTimeout(resolve, TYPEWRITER_MS_PER_CHAR));
+      }
+
+      if (bubble) {
+        bubble.innerHTML = formatMarkdown(fullText);
+      } else {
+        removeChatbotTypingIndicator();
+        appendChatMessage("ai", "Sorry, I couldn't generate a response.");
+      }
+    } catch (err) {
+      if (typewriterTimer) clearTimeout(typewriterTimer);
+      removeChatbotTypingIndicator();
+      if (bubble) {
+        bubble.closest('.message-wrapper').remove();
+      }
+      appendChatMessage("ai", "Sorry, Finance Buddy is currently unavailable. Please try again in a moment.");
+    }
+  };
+
   const sendMessage = () => {
     const txt = chatInput.value.trim();
     if (txt.length === 0) return;
-    
-    appendChatMessage("user", txt);
     chatInput.value = '';
-    
-    // Simulate typing
-    showChatbotTypingIndicator();
-    
-    setTimeout(() => {
-      removeChatbotTypingIndicator();
-      const response = generateAIResponse(txt);
-      appendChatMessage("ai", response);
-    }, 1200 + Math.random() * 800);
+    askBuddy(txt);
   };
-  
+
   sendBtn.addEventListener('click', sendMessage);
   chatInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') sendMessage();
   });
-  
+
   // Suggested Questions chips
   document.querySelectorAll('.suggested-chip').forEach(chip => {
     chip.addEventListener('click', () => {
-      const txt = chip.textContent;
-      appendChatMessage("user", txt);
-      
-      showChatbotTypingIndicator();
-      
-      setTimeout(() => {
-        removeChatbotTypingIndicator();
-        const response = generateAIResponse(txt);
-        appendChatMessage("ai", response);
-      }, 1200);
+      askBuddy(chip.textContent);
     });
   });
 }
@@ -2915,6 +2953,7 @@ function appendChatMessage(sender, text) {
   `;
   container.appendChild(wrapper);
   container.scrollTop = container.scrollHeight;
+  return wrapper.querySelector('.message-bubble');
 }
 
 function showChatbotTypingIndicator() {
@@ -2941,6 +2980,59 @@ function removeChatbotTypingIndicator() {
   const indicator = document.getElementById('chat-typing-indicator-node');
   if (indicator) {
     indicator.remove();
+  }
+}
+
+// 12b. Portfolio Analyzer Audit Log
+function setupAuditLog() {
+  const refreshBtn = document.getElementById('audit-log-refresh-btn');
+  if (!refreshBtn) return;
+
+  refreshBtn.addEventListener('click', renderAuditLog);
+  renderAuditLog();
+}
+
+async function renderAuditLog() {
+  const list = document.getElementById('audit-log-list');
+  if (!list) return;
+
+  list.innerHTML = `<p style="font-size:0.8rem; color:var(--text-secondary);">Loading audit log...</p>`;
+
+  try {
+    const { entries } = await getAuditLog();
+
+    if (!entries || entries.length === 0) {
+      list.innerHTML = `<p style="font-size:0.8rem; color:var(--text-secondary);">No audit log entries yet. Entries appear here once a portfolio analysis is run.</p>`;
+      return;
+    }
+
+    list.innerHTML = entries
+      .slice()
+      .reverse()
+      .map((entry) => {
+        const time = new Date(entry.timestamp).toLocaleString();
+        const healthLabel = entry.response?.health_label ?? 'N/A';
+        const overallRisk = (entry.response?.risk_analysis?.match(/overall_risk=<RiskLevel\.(\w+)/) || [])[1] ?? 'N/A';
+        const holdingsCount = entry.request?.holdings?.length ?? 0;
+
+        return `
+          <div style="border:1px solid var(--border-color, rgba(0,0,0,0.08)); border-radius:10px; padding:10px 14px;">
+            <div style="display:flex; justify-content:space-between; font-size:0.78rem; color:var(--text-secondary); margin-bottom:4px;">
+              <span>${time}</span>
+              <span>Session: ${entry.session_id ?? 'N/A'}</span>
+            </div>
+            <div style="font-size:0.85rem;">
+              <strong>User:</strong> ${entry.user_id ?? 'N/A'} &nbsp;·&nbsp;
+              <strong>Holdings:</strong> ${holdingsCount} &nbsp;·&nbsp;
+              <strong>Risk:</strong> ${overallRisk} &nbsp;·&nbsp;
+              <strong>Health:</strong> ${healthLabel}
+            </div>
+          </div>
+        `;
+      })
+      .join('');
+  } catch (err) {
+    list.innerHTML = `<p style="font-size:0.8rem; color:var(--color-danger, #d33);">Could not load audit log. The Portfolio Analyzer service may be unavailable.</p>`;
   }
 }
 
@@ -2978,53 +3070,6 @@ function formatMarkdown(text) {
   return result.join('<br>').replace(/<\/ul><br>/g, '</ul>').replace(/<br><ul>/g, '<ul>');
 }
 
-// Chatbot Knowledge Engine matcher
-function generateAIResponse(query) {
-  const lower = query.toLowerCase();
-  
-  if (lower.includes('risk') || lower.includes('allocation')) {
-    const metrics = calculatePortfolioMetrics();
-    return `Your current portfolio values at **${formatRupee(metrics.totalVal)}** with a risk profile set to **${state.user.riskProfile}**.\n
-Here is your current diversification status:
-- **Mutual Funds / Indexes:** ₹2,50,700 (~52%)
-- **Direct Equities:** ₹1,57,610 (~33%)
-- **Digital Gold:** ₹34,000 (~7%)
-- **Fixed Deposits / NPS:** ₹54,000 (~11%)\n
-**AI Insight:** Under your Moderate risk guidelines, you are slightly overweight in direct equities and index funds (totaling 85% vs the 50% target). Your **Risk Alignment** rating is **6/10**. We recommend routing future capitals into Fixed Deposits or debt funds to safeguard your margin.`;
-  }
-  
-  if (lower.includes('sip') || lower.includes('1 cr') || lower.includes('crore')) {
-    return `To accumulate **₹1 Crore** over a horizon of **20 years**, the required monthly SIP depends on your expected compound rate of return:\n
-- **At 10% CAGR (Conservative Equity):** You need a monthly SIP of **₹13,170**
-- **At 12% CAGR (Moderate Flexi-Cap):** You need a monthly SIP of **₹10,010**
-- **At 15% CAGR (Aggressive Small-Cap):** You need a monthly SIP of **₹6,680**\n
-*Note: These simulations do not factor in inflation. A ₹1 Cr target in 20 years will buy equivalent to only ₹31 Lakhs today at a 6% inflation drag. Adjust target to ₹3.2 Cr to match actual purchasing power.*`;
-  }
-  
-  if (lower.includes('elss') || lower.includes('tax')) {
-    return `**ELSS (Equity Linked Savings Scheme)** is an excellent tax-saving instrument under Section 80C of the Income Tax Act:\n
-- **Lock-in period:** 3 years (the shortest among all 80C instruments like PPF's 15-year or tax-saver FD's 5-year lock).
-- **Tax deduction:** Claim tax deduction on up to **₹1.5 Lakhs** of investment capital, saving up to ₹46,800 annually for individuals in the 30% tax bracket.
-- **Returns potential:** Since ELSS funds invest directly in equities, they historically compound at 12-15% over long horizons, beat inflation, but are subject to market volatility.`;
-  }
-  
-  if (lower.includes('rebalance') || lower.includes('drift')) {
-    return `**Asset Allocation Rebalancing is highly recommended.**\n
-Your equity target is **50%**, but your actual exposure is **85%** (Mutual Funds + direct stocks). This drift of **+35%** exposes your capital to elevated volatility if markets correct.\n
-**Action Plan:**
-1. Sell ₹18,000 worth of direct equities (e.g. Tata Motors which is up 22%).
-2. Re-allocate that ₹18,000 directly into Fixed Deposits or high-yield debt mutual funds.
-3. Pause direct stock SIP purchases and redirect inputs to liquid debt funds until your equity proportion falls back to 50-55%.`;
-  }
-  
-  return `I understand you are asking about: "${query}".\n
-Here is a helpful summary of what we know:
-- **Your Current Portfolio Health:** 7.2 out of 10. You have good diversification but high equity risk drift.
-- **Goals status:** Europe Trip is on track. Home Downpayment requires an additional monthly SIP of ₹8,000.
-- **Linked sources:** zerodha, Groww, SBI savings feed are currently sync'd via Account Aggregator.
-\nLet me know if you would like me to explain CAGR vs XIRR or evaluate your ELSS limits!`;
-}
-
 // 13. Initialization & Event Triggers
 document.addEventListener('DOMContentLoaded', () => {
   initNavigation();
@@ -3041,6 +3086,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initLearnTabs();
   renderQuiz();
   setupChatbot();
+  setupAuditLog();
   
   // Close welcome nudge card alert logic
   const closeNudgeBtn = document.getElementById('close-dashboard-nudge');

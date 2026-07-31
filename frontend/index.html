@@ -952,6 +952,26 @@
             </div>
 
           </div>
+
+          <!-- Audit Log Section (Portfolio Analyzer request/response trail) -->
+          <div class="glass-card" id="audit-log-panel" style="margin-top: 20px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <i data-lucide="shield-check" style="color:var(--color-equity);"></i>
+                <strong style="font-size:0.95rem;">Portfolio Analyzer Audit Log</strong>
+              </div>
+              <button class="btn btn-secondary" id="audit-log-refresh-btn" style="padding:6px 14px; font-size:0.8rem;">
+                <i data-lucide="refresh-cw" style="width:14px; height:14px;"></i> Refresh
+              </button>
+            </div>
+            <p style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:14px;">
+              A read-only trail of every portfolio analysis request processed by the AI Portfolio Analyzer, for transparency and audit purposes.
+            </p>
+            <div id="audit-log-list" style="display:flex; flex-direction:column; gap:10px; max-height:360px; overflow-y:auto;">
+              <!-- Populated via JS -->
+              <p style="font-size:0.8rem; color:var(--text-secondary);">Loading audit log...</p>
+            </div>
+          </div>
         </section>
 
         <!-- 9. Notifications Page -->

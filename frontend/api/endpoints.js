@@ -72,4 +72,7 @@ export const ENDPOINTS = {
 
   // ─── AI Chatbot ─────────────────────────────────────────────────────────────
   chat: `${API_PREFIX}/chat`,
+
+  // ─── Portfolio Analyzer Audit Log ──────────────────────────────────────────
+  auditLog: `${API_PREFIX}/audit-log`,
 };

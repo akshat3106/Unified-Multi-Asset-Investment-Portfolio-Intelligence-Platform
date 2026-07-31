@@ -4,7 +4,7 @@
  */
 
 import { ENDPOINTS } from './endpoints.js';
-import { apiRequest } from './client.js';
+import { apiRequest, streamRequest } from './client.js';
 
 // ─── Health ───────────────────────────────────────────────────────────────────
 
@@ -368,4 +368,28 @@ export function sendChatMessage(payload) {
     method: 'POST',
     body: JSON.stringify(payload),
   });
+}
+
+/**
+ * POST /api/v1/chat, streamed word-by-word.
+ * @param {{ message: string, sessionId?: string }} payload
+ * @param {(chunk: string) => void} onChunk - called with each new text fragment as it arrives
+ * @returns {Promise<string>} the full assembled reply
+ */
+export function streamChatMessage(payload, onChunk) {
+  return streamRequest(ENDPOINTS.chat, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }, onChunk);
+}
+
+// ─── Portfolio Analyzer Audit Log ────────────────────────────────────────────────
+
+/**
+ * GET /api/v1/audit-log
+ * @param {{ userId?: string }} [params]
+ * @returns {Promise<{ count: number, entries: object[] }>}
+ */
+export function getAuditLog(params = {}) {
+  return apiRequest(ENDPOINTS.auditLog, { params });
 }

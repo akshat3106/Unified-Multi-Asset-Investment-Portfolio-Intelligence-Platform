@@ -3,7 +3,7 @@
  * Attaches Firebase ID token when a getAuthToken callback is provided.
  */
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '');
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000').replace(/\/$/, '');
 
 let getAuthToken = null;
 
@@ -64,6 +64,49 @@ export async function apiRequest(path, options = {}) {
   }
 
   return body;
+}
+
+/**
+ * Like apiRequest, but calls onChunk(text) as data arrives instead of waiting
+ * for the full response. Resolves with the fully concatenated text.
+ * @param {string} path
+ * @param {RequestInit} options
+ * @param {(chunk: string) => void} onChunk
+ */
+export async function streamRequest(path, options = {}, onChunk) {
+  const { headers: customHeaders, ...fetchOptions } = options;
+  const url = `${API_BASE_URL}${path}`;
+
+  const headers = new Headers(customHeaders || {});
+  if (!headers.has('Content-Type') && fetchOptions.body) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  if (getAuthToken) {
+    const token = await getAuthToken();
+    if (token) headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  const response = await fetch(url, { ...fetchOptions, headers });
+
+  if (!response.ok || !response.body) {
+    const text = await response.text().catch(() => '');
+    throw new ApiError(text || `Request failed (${response.status})`, { status: response.status });
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let full = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const chunk = decoder.decode(value, { stream: true });
+    full += chunk;
+    onChunk(chunk);
+  }
+
+  return full;
 }
 
 export function getApiBaseUrl() {
