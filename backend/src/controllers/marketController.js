@@ -53,4 +53,34 @@ const getIndices = async (req, res) => {
   }
 };
 
-module.exports = { searchMarket, getQuote, getChart, getIndices };
+// GET /api/market/mutual-funds/catalog
+const getMutualFundCatalog = async (req, res) => {
+  try {
+    const catalog = await marketService.getMutualFundCatalog();
+    res.status(200).json(catalog);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch mutual fund catalog', error: error.message });
+  }
+};
+
+// GET /api/market/equities/catalog
+const getEquityCatalog = async (req, res) => {
+  try {
+    const catalog = await marketService.getEquityCatalog();
+    res.status(200).json(catalog);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch equity catalog', error: error.message });
+  }
+};
+
+// GET /api/market/gold/catalog
+const getGoldCatalog = async (req, res) => {
+  try {
+    const catalog = await marketService.getGoldCatalog();
+    res.status(200).json(catalog);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch gold catalog', error: error.message });
+  }
+};
+
+module.exports = { searchMarket, getQuote, getChart, getIndices, getMutualFundCatalog, getEquityCatalog, getGoldCatalog };

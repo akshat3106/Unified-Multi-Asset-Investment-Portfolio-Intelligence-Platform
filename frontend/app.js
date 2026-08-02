@@ -1,7 +1,7 @@
 // AssetBridge Unified Investing Dashboard - App Core Logic
 //0. FIREBASE AUTH
 // 1. Firebase SDK Imports
-import { searchStocks, searchMutualFunds, getStockQuote, getStockChart, getMarketIndices, streamChatMessage, getAuditLog, setAuthTokenProvider, syncUser } from './api/index.js';
+import { searchStocks, searchMutualFunds, getStockQuote, getStockChart, getMarketIndices, streamChatMessage, getAuditLog, analyzePortfolio, getMutualFundCatalog, getEquityCatalog, getGoldCatalog, setAuthTokenProvider, syncUser, getHoldings, getPortfolioPerformance } from './api/index.js';
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { 
   getAuth, 
@@ -26,8 +26,14 @@ const firebaseConfig = {
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 
+// Attach the logged-in user's Firebase ID token to every backend API request.
+setAuthTokenProvider(async () => {
+  const user = auth.currentUser;
+  return user ? user.getIdToken() : null;
+});
+
 // 3. Track Auth State Changes and sync with AssetBridge state
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
   if (user) {
     // Configure API HTTP client to attach Firebase token to backend calls
     setAuthTokenProvider(() => user.getIdToken());
@@ -43,10 +49,18 @@ onAuthStateChanged(auth, (user) => {
     if (sidebarUserName) sidebarUserName.textContent = state.user.fullName;
     if (sidebarAvatar) sidebarAvatar.textContent = state.user.fullName.split(' ').map(n => n[0]).join('').toUpperCase();
 
-    // Synchronize user profile with backend database
-    syncUser().catch((err) => console.warn('User sync notice:', err.message));
+    // Creates the user's backend record on first login (assigning a random
+    // mock portfolio server-side), then loads their real holdings.
+    try {
+      await syncUser();
+      const holdings = await getHoldings();
+      state.holdings = holdings;
+    } catch (err) {
+      console.error('Failed to load holdings from backend, keeping previous state.', err);
+    }
 
     renderAll();
+    renderAuditLog();
   } else {
     setAuthTokenProvider(null);
     // User is signed out -> Open login modal automatically
@@ -114,12 +128,206 @@ const state = {
   ],
   
   explainers: [
-    { category: "basics", title: "What is SIP and how does it beat market timing?", readTime: "2 min read", difficulty: "Beginner" },
-    { category: "returns", title: "XIRR vs CAGR — which one actually matters?", readTime: "3 min read", difficulty: "Intermediate" },
-    { category: "basics", title: "How inflation silently eats your savings over 20 years", readTime: "3 min read", difficulty: "Beginner" },
-    { category: "tax", title: "ELSS vs PPF vs NPS — which saves more tax?", readTime: "4 min read", difficulty: "Intermediate" },
-    { category: "stocks", title: "How to read a P/E ratio without getting confused", readTime: "3 min read", difficulty: "Beginner" },
-    { category: "mf", title: "What does a mutual fund factsheet actually tell you?", readTime: "4 min read", difficulty: "Intermediate" }
+    {
+      id: "exp-sip-timing",
+      category: "basics",
+      title: "What is SIP and how does it beat market timing?",
+      readTime: "6 min read",
+      difficulty: "Beginner",
+      body: `
+        <p>A <strong>Systematic Investment Plan (SIP)</strong> is an instruction you give a mutual fund to automatically deduct a fixed amount from your bank account at a regular interval — usually monthly — and invest it into a scheme of your choice. Instead of trying to find the "perfect moment" to invest a lump sum, you invest small, fixed amounts continuously, letting the process run on autopilot for years.</p>
+
+        <p><strong>The core mechanic: rupee-cost averaging</strong></p>
+        <p>This is the real engine behind why SIPs work. Since you invest the same rupee amount every month regardless of the fund's price (NAV), you automatically buy <em>more units</em> when prices are low and <em>fewer units</em> when prices are high. Over time, this smooths out your average purchase cost per unit, instead of locking in whatever price happened to be prevailing on one single day.</p>
+        <p>Consider a simple illustration with a ₹5,000 monthly SIP:</p>
+        <ul>
+          <li>Month 1 — NAV ₹50 → you get 100 units</li>
+          <li>Month 2 — market dips, NAV ₹40 → you get 125 units</li>
+          <li>Month 3 — market recovers, NAV ₹55 → you get ~91 units</li>
+        </ul>
+        <p>Your average cost per unit across these three months works out to be lower than simply averaging the three NAVs, precisely because you bought more when it was cheap. A lump-sum investor who put in all ₹15,000 on Month 1 at ₹50/unit would have no such advantage.</p>
+
+        <p><strong>Why trying to time the market usually fails</strong></p>
+        <p>Successfully timing the market requires getting two decisions right: when to get in, <em>and</em> when to get out — consistently, again and again. Even professional fund managers with research teams and decades of experience rarely achieve this reliably over the long run. Missing just the 10 best trading days in a 20-year period has been shown, across multiple market studies, to cut total returns dramatically — and those best days often occur right after the scariest crashes, exactly when most retail investors are too fearful to invest.</p>
+        <p>SIPs remove this decision entirely. You don't need to predict anything — you're structurally present in the market every single month, capturing both the dips (buying cheap) and the rallies (participating in the recovery) without having to correctly call either.</p>
+
+        <p><strong>The behavioral advantage</strong></p>
+        <p>Beyond the math, SIPs solve a psychological problem. Left to their own judgment, most investors buy when markets feel good (near tops, driven by greed and FOMO) and sell when markets feel scary (near bottoms, driven by panic) — the exact opposite of "buy low, sell high." Because a SIP is automated, it removes that emotional trigger point. The money leaves your account whether the news that week is good or bad, and that consistency is what actually builds wealth over a decade or two.</p>
+
+        <p><strong>Where SIPs don't have an edge</strong></p>
+        <p>SIPs are not magic — they're a risk-management and discipline tool, not a returns-boosting one. If you had perfect foresight and invested a lump sum right before a multi-year bull run, that lump sum would outperform an equivalent SIP spread over the same period, simply because 100% of your money was working from day one instead of trickling in gradually. The entire value of a SIP comes from the fact that nobody has that foresight in advance — so spreading entry points reduces the risk of unknowingly investing everything right before a downturn.</p>
+
+        <p><strong>Practical takeaway</strong></p>
+        <p>SIPs are best suited for long-term goals (5+ years) where you want to build a habit of investing without needing to actively manage entry timing. The longer the horizon, the more rupee-cost averaging and compounding work in your favor — which is why SIPs are the default recommended vehicle for goals like retirement, a child's education, or a house down payment 10-20 years out.</p>
+      `,
+    },
+    {
+      id: "exp-xirr-cagr",
+      category: "returns",
+      title: "XIRR vs CAGR — which one actually matters?",
+      readTime: "6 min read",
+      difficulty: "Intermediate",
+      body: `
+        <p>Both CAGR and XIRR try to answer the same underlying question — "what annual rate of return did my money actually earn?" — but they're built for two completely different investing patterns, and using the wrong one gives you a number that looks precise but is quietly wrong.</p>
+
+        <p><strong>CAGR — Compound Annual Growth Rate</strong></p>
+        <p>CAGR assumes the simplest possible cash flow pattern: one lump sum invested on day one, left completely untouched, and one final value on the day you check it. The formula is:</p>
+        <p style="text-align:center; font-family:monospace;">CAGR = (Ending Value / Beginning Value)^(1 / Number of Years) − 1</p>
+        <p>Example: You invest ₹1,00,000 and it grows to ₹2,00,000 in exactly 6 years, with no other deposits or withdrawals in between. CAGR = (2,00,000/1,00,000)^(1/6) − 1 ≈ 12.25% per year. This number is accurate and meaningful <em>only</em> because there was exactly one cash flow at the start and one at the end.</p>
+
+        <p><strong>XIRR — Extended Internal Rate of Return</strong></p>
+        <p>Real portfolios rarely look like that. You might start a SIP, add a lump-sum bonus in month 7, pause contributions for two months, then resume, and eventually make a partial withdrawal. XIRR is designed exactly for this: it takes every single cash flow — each one tagged with its own date and amount, positive for money going in, negative for money coming out — and calculates the single annualized rate of return that makes all of those cash flows mathematically consistent with the final portfolio value.</p>
+        <p>Because XIRR accounts for the <em>exact date</em> of every rupee, it correctly gives more weight to money that has been invested longer and less weight to money that just went in last week — which is precisely how real returns behave.</p>
+
+        <p><strong>A concrete comparison</strong></p>
+        <p>Imagine two investors who both end up with a portfolio worth ₹3,00,000 after 3 years:</p>
+        <ul>
+          <li><strong>Investor A</strong> put in a single lump sum of ₹2,00,000 on day one. CAGR is the right tool here, and it might show roughly 14.5% annualized.</li>
+          <li><strong>Investor B</strong> ran a SIP of ₹5,000/month for 3 years (total invested ≈ ₹1,80,000) and ended at the same ₹3,00,000. Using CAGR on Investor B's numbers would be misleading, because it would treat the ₹1,80,000 as if it were all invested on day one — hugely understating how good the actual return was, since most of that money was only invested for a fraction of the 3 years. XIRR correctly accounts for each monthly contribution's actual holding period and would show a meaningfully higher effective annual return for Investor B.</li>
+        </ul>
+
+        <p><strong>Why this matters practically</strong></p>
+        <p>Almost every mutual fund platform and portfolio tracker (including the Portfolio Health metrics in this app) reports XIRR for SIP-based holdings for exactly this reason — it's the only metric that doesn't distort the picture when your money went in at different times. If you ever see a fund's "returns since inception" and it doesn't match your own portfolio's return, the difference is very often this exact CAGR-vs-XIRR mismatch, not a fee or a hidden cost.</p>
+
+        <p><strong>Simple decision rule</strong></p>
+        <p>Single investment, no interim deposits/withdrawals → CAGR is fine and simpler to compute by hand. Any SIP, staggered lump sums, or partial redemptions → XIRR is the only metric that reflects your true annualized return.</p>
+      `,
+    },
+    {
+      id: "exp-inflation-savings",
+      category: "basics",
+      title: "How inflation silently eats your savings over 20 years",
+      readTime: "6 min read",
+      difficulty: "Beginner",
+      body: `
+        <p>Inflation is the gradual, ongoing rise in the price of goods and services across the economy. It's measured in India primarily via the CPI (Consumer Price Index) — the metric the RBI officially targets, aiming to keep it in a 2-6% band. What makes inflation dangerous to long-term savers isn't any single year's number; it's what happens when that number compounds, unnoticed, for 15-20 years.</p>
+
+        <p><strong>The core problem: purchasing power, not rupee count</strong></p>
+        <p>Your bank statement will always show your rupee balance growing (assuming you're earning any interest at all) — inflation never shows up as a debit entry. But the real question isn't "how many rupees do I have?", it's "what can those rupees actually buy?" That second number is what inflation quietly erodes, year after year, without ever appearing on any statement.</p>
+
+        <p><strong>A concrete 20-year illustration</strong></p>
+        <p>At a steady 6% average annual inflation (a reasonable long-run assumption for India), prices roughly double every 12 years. So something costing ₹50,000 today would cost approximately:</p>
+        <ul>
+          <li>~₹89,500 in 10 years</li>
+          <li>~₹1,60,000 in 20 years</li>
+        </ul>
+        <p>That's more than triple the rupee figure — for the exact same goods or services. If your ₹50,000 in savings sat in an instrument earning less than 6% (a regular savings account paying 3-4%, for instance), you'd technically have more rupees in 20 years, but you'd be able to buy <em>less</em> than what ₹50,000 buys today. In real terms, your wealth shrank while its rupee-labeled number grew — which is exactly why this erosion is so easy to miss.</p>
+
+        <p><strong>Real return vs nominal return</strong></p>
+        <p>This is the concept of <em>real return</em>: Real Return ≈ Nominal Return − Inflation Rate. A fixed deposit paying 7% during a period of 6% inflation is only really earning you about 1% in actual purchasing power terms — and that's before accounting for tax on the interest, which can push the real, post-tax return into negative territory entirely for many investors.</p>
+
+        <p><strong>Why this matters enormously for goal planning</strong></p>
+        <p>If you're setting a savings target for something 15-20 years away — a child's college education, a retirement corpus, a house down payment — the target itself must be inflation-adjusted, not just based on today's cost. A goal that costs ₹50 lakh today in real terms will require a much larger rupee figure by the time you actually need the money, purely because prices will have risen throughout that period. Underestimating this is one of the most common and costly planning mistakes: people save diligently toward a rupee number calculated using today's prices, and then discover at the finish line that it doesn't buy what they expected.</p>
+
+        <p><strong>The counter-strategy: growth assets</strong></p>
+        <p>This is precisely why "safe" instruments alone are insufficient for long-horizon goals. Equity mutual funds, direct equities, and other growth assets have historically compounded at rates that meaningfully outpace inflation over 10+ year periods (though with real short-term volatility along the way) — they exist specifically to counter this erosion. A sensible long-term strategy typically blends some inflation-beating growth exposure with safer instruments, rather than relying entirely on capital-protection vehicles that quietly lose real value the longer money sits in them.</p>
+
+        <p><strong>Key takeaway</strong></p>
+        <p>Inflation is the single most persistent, invisible risk to long-term savings. It doesn't announce itself in any account statement, doesn't require a market crash to do damage, and works silently in the background every single year — which makes it easy to ignore and expensive to underestimate.</p>
+      `,
+    },
+    {
+      id: "exp-elss-ppf-nps",
+      category: "tax",
+      title: "ELSS vs PPF vs NPS — which saves more tax?",
+      readTime: "7 min read",
+      difficulty: "Intermediate",
+      body: `
+        <p>All three of these instruments reduce your taxable income under the Income Tax Act, but they take very different paths to get there — different lock-ins, different risk profiles, and different deduction limits. The "best" choice depends far more on your time horizon and risk tolerance than on which one technically "saves the most tax," since for two of the three the deduction cap is identical.</p>
+
+        <p><strong>ELSS — Equity Linked Savings Scheme</strong></p>
+        <ul>
+          <li><strong>Deduction:</strong> Up to ₹1.5 lakh per year under Section 80C (shared with PPF, EPF, life insurance premiums, and other 80C instruments — it's one combined ₹1.5 lakh cap, not ₹1.5 lakh per instrument).</li>
+          <li><strong>Lock-in:</strong> Just 3 years — the shortest mandatory lock-in of any Section 80C instrument (compare to PPF's 15 years or a tax-saver FD's 5 years).</li>
+          <li><strong>How it invests:</strong> Fully in equities, actively or passively managed depending on the scheme. Returns are entirely market-linked.</li>
+          <li><strong>Risk & return profile:</strong> Because it's 100% equity, ELSS can be genuinely volatile in any given 1-3 year window, but has historically compounded in the 12-15% range over long multi-year periods — well ahead of PPF's fixed rate, at the cost of real short-term uncertainty.</li>
+        </ul>
+
+        <p><strong>PPF — Public Provident Fund</strong></p>
+        <ul>
+          <li><strong>Deduction:</strong> Also up to ₹1.5 lakh, and shares the exact same combined 80C cap as ELSS — so putting money in both doesn't get you ₹3 lakh of deduction, it's still capped at ₹1.5 lakh total across everything in that basket.</li>
+          <li><strong>Lock-in:</strong> 15 years, extendable indefinitely in blocks of 5 years thereafter. Partial withdrawals are allowed from the 7th year onward under specific rules, but it's fundamentally a long-horizon commitment.</li>
+          <li><strong>Tax treatment:</strong> PPF is one of the rare "EEE" (Exempt-Exempt-Exempt) instruments in India — your contribution is deductible, the interest earned is tax-free, and the maturity proceeds are also completely tax-free. No other instrument on this list offers that full triple exemption.</li>
+          <li><strong>Risk & return:</strong> Government-backed with zero market risk. The interest rate is set quarterly by the government (historically hovering in the 7-8% range) and is guaranteed regardless of what markets do.</li>
+        </ul>
+
+        <p><strong>NPS — National Pension System</strong></p>
+        <ul>
+          <li><strong>Deduction:</strong> This is the key differentiator — NPS offers an <em>additional</em> ₹50,000 deduction under Section 80CCD(1B), completely separate from and on top of the ₹1.5 lakh 80C limit. This makes NPS the only one of the three instruments here that can push your total deduction beyond ₹1.5 lakh, up to ₹2 lakh combined.</li>
+          <li><strong>Lock-in:</strong> Effectively until retirement (age 60), with limited partial withdrawal provisions for specific life events.</li>
+          <li><strong>How it invests:</strong> A mix of equity, corporate debt, and government securities, in proportions you can typically choose within regulatory limits, managed by a Pension Fund Manager (PFM) you select.</li>
+          <li><strong>The annuity requirement:</strong> At retirement, a mandatory portion of the final NPS corpus (typically at least 40%) must be used to purchase an annuity — a product that pays you a regular pension income — rather than being withdrawn as a lump sum. This is a meaningful liquidity trade-off compared to ELSS or even PPF.</li>
+        </ul>
+
+        <p><strong>Putting it side by side</strong></p>
+        <p>If your priority is the shortest possible lock-in combined with the highest long-term growth potential, and you can tolerate short-term volatility, ELSS is the strongest fit. If you want a completely risk-free, guaranteed instrument and don't mind a genuinely long 15-year commitment, PPF's full tax-free treatment is hard to beat. If you've already exhausted your ₹1.5 lakh 80C limit through other instruments (EPF, insurance, ELSS, etc.) and specifically want to reduce your tax bill further while building a retirement-specific corpus, NPS's extra ₹50,000 deduction is the only lever among these three that gets you there.</p>
+
+        <p><strong>A common mistake to avoid</strong></p>
+        <p>A frequent misunderstanding is assuming ELSS and PPF deductions "stack" to give ₹3 lakh in total savings — they don't, since both draw from the same ₹1.5 lakh 80C bucket. Only NPS's Section 80CCD(1B) component sits in a genuinely separate bucket.</p>
+      `,
+    },
+    {
+      id: "exp-pe-ratio",
+      category: "stocks",
+      title: "How to read a P/E ratio without getting confused",
+      readTime: "6 min read",
+      difficulty: "Beginner",
+      body: `
+        <p>The <strong>Price-to-Earnings (P/E) ratio</strong> is one of the most widely quoted numbers in investing, and also one of the most frequently misread. In plain terms, it tells you how much investors are collectively willing to pay today for every ₹1 of a company's current annual profit.</p>
+        <p style="text-align:center; font-family:monospace;">P/E = Current Share Price / Earnings Per Share (EPS)</p>
+
+        <p><strong>A worked example</strong></p>
+        <p>Suppose a company's stock trades at ₹500, and its trailing 12-month EPS is ₹25. Its P/E is 500/25 = 20. This means investors are paying 20 times the company's current per-share earnings to own a piece of it — or, put differently, if the company kept generating exactly this same profit every year and paid it all out, it would take 20 years of earnings to "recoup" the price paid for the share.</p>
+
+        <p><strong>What a high P/E can signal</strong></p>
+        <p>A P/E well above the market average (say, 35-40+) most commonly means one of two things: either the market genuinely expects the company's earnings to grow rapidly in the future and is pricing that growth in ahead of time (very common for technology, new-age consumer internet, or early-stage high-growth companies) — or the stock has simply become overvalued relative to its actual current earnings, detached from fundamentals by hype or momentum. Distinguishing between these two requires looking well beyond the P/E number alone — at revenue growth trends, competitive positioning, and the broader sector.</p>
+
+        <p><strong>What a low P/E can signal</strong></p>
+        <p>A P/E well below the market average (say, under 10-12) can genuinely represent an undervalued bargain that the market hasn't fully appreciated yet — but it can equally reflect real, well-founded market concerns: a structurally declining industry, weakening competitive position, one-off accounting profits inflating the EPS temporarily, or looming regulatory/business risk. A low P/E is a prompt to investigate further, not an automatic buy signal.</p>
+
+        <p><strong>The comparison trap — P/E only works relative to something</strong></p>
+        <p>The single biggest mistake in reading P/E ratios is treating a number in isolation as universally "cheap" or "expensive." P/E is only meaningful when compared like-for-like:</p>
+        <ul>
+          <li><strong>Against the company's own historical average</strong> — is this stock trading unusually high or low relative to where it's typically traded over the past several years?</li>
+          <li><strong>Against direct sector peers</strong> — a P/E of 40 might be entirely normal and even conservative for a fast-growing software company, while the same P/E of 40 for a traditional public-sector bank would be extraordinarily expensive, since banking and software carry fundamentally different structural growth rates, margins, and capital requirements.</li>
+          <li><strong>Against the broader index</strong> — comparing a stock's P/E to the Nifty 50 or Sensex average gives a sense of whether it's trading at a premium or discount to "the market" as a whole, though this too needs sector context.</li>
+        </ul>
+
+        <p><strong>What P/E doesn't tell you</strong></p>
+        <p>P/E says nothing about a company's debt levels, cash flow quality, growth trajectory, or the sustainability of its current earnings. Two companies can have an identical P/E of 20 while one is a fundamentally much safer, more predictable business than the other — P/E is a starting point for valuation discussion, never a complete answer on its own.</p>
+      `,
+    },
+    {
+      id: "exp-mf-factsheet",
+      category: "mf",
+      title: "What does a mutual fund factsheet actually tell you?",
+      readTime: "7 min read",
+      difficulty: "Intermediate",
+      body: `
+        <p>A mutual fund factsheet is a standardized document every fund house (AMC) publishes monthly, and it's genuinely the fastest way to evaluate a fund properly — well beyond just glancing at its headline 1-year return. Here's what each major section actually tells you, and why it matters.</p>
+
+        <p><strong>NAV (Net Asset Value)</strong></p>
+        <p>This is the fund's per-unit price, declared daily after market close. A very common misconception is treating NAV like a stock price — assuming a fund with NAV ₹500 is somehow "more expensive" or "better performing" than one with NAV ₹50. This is incorrect: NAV is simply total fund assets divided by total units outstanding, an accounting artifact of how many units have been issued. What actually matters is the <em>percentage growth</em> in NAV over time, not its absolute level.</p>
+
+        <p><strong>AUM (Assets Under Management)</strong></p>
+        <p>This is the total money the fund currently manages across all its investors. A larger AUM often signals broader investor trust and platform longevity, but it cuts both ways — in small-cap or mid-cap categories specifically, a very large AUM can make it structurally harder for a fund manager to enter or exit stock positions without moving the price against themselves, since smaller companies have limited available trading volume.</p>
+
+        <p><strong>Expense Ratio</strong></p>
+        <p>This is the annual fee the fund charges, expressed as a percentage of your invested assets, covering management, research, and administrative costs. It's deducted continuously from the fund's NAV, so you never see it as a separate transaction — but it compounds against you every single year. A seemingly small difference of even 1% in expense ratio can translate into a meaningfully large gap in your final corpus over a 15-20 year horizon, purely from the effect of compounding. <strong>Direct plans</strong> always carry a lower expense ratio than <strong>Regular plans</strong> for the identical underlying scheme, since Direct plans cut out the distributor commission that Regular plans pay to whoever sold you the fund.</p>
+
+        <p><strong>Portfolio holdings & sector allocation</strong></p>
+        <p>This section lists exactly which stocks (or bonds, for debt funds) the fund currently holds, and what percentage of the portfolio each one represents, along with a sector-wise breakdown. This is the best tool for checking whether a fund's actual holdings match what its name and stated category imply — a "Flexi Cap" fund that's actually 70% concentrated in large-caps, for instance, isn't really behaving the way its category name suggests.</p>
+
+        <p><strong>Riskometer</strong></p>
+        <p>A SEBI-mandated visual gauge running from "Low" to "Very High" risk, standardized in format across every fund house so investors can compare risk levels at a glance without reading through dense documentation. It's a helpful sanity check, though it's a fairly coarse categorization and shouldn't replace looking at the fund's actual volatility history and holdings.</p>
+
+        <p><strong>Rolling returns and benchmark comparison</strong></p>
+        <p>Rather than quoting a single "1-year return" or "5-year return" figure — both of which can be flattered or distorted purely by the luck of which exact start and end date you happen to pick — rolling returns measure performance across many overlapping periods (for example, every possible 3-year window within the past decade). This gives a far more honest sense of how <em>consistently</em> a fund has performed relative to its benchmark index across different market cycles, rather than relying on one cherry-pickable snapshot.</p>
+
+        <p><strong>Putting it together</strong></p>
+        <p>A fund with a great 1-year return but a high expense ratio, holdings that don't match its stated category, and weak rolling returns relative to its benchmark is a very different (and generally worse) proposition than one with a modest 1-year number but low costs, consistent benchmark-beating rolling returns, and holdings that clearly reflect its strategy. The factsheet is what lets you tell these two apart — the headline return number alone cannot.</p>
+      `,
+    },
   ],
   
   fundsCatalog: [
@@ -210,6 +418,28 @@ function initNavigation() {
     }
   });
 
+  // Mobile hamburger menu
+  const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+  const mobileNavPanel = document.getElementById('mobile-nav-panel');
+  if (mobileMenuToggle && mobileNavPanel) {
+    mobileMenuToggle.addEventListener('click', () => {
+      mobileNavPanel.classList.toggle('active');
+    });
+
+    mobileNavPanel.querySelectorAll('.mobile-nav-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.preventDefault();
+        const targetPageId = item.getAttribute('data-page');
+        mobileNavPanel.classList.remove('active');
+        isAutoScrolling = true;
+        navigateToPage(targetPageId);
+        setTimeout(() => {
+          isAutoScrolling = false;
+        }, 800);
+      });
+    });
+  }
+
   // Handle URL hashes on reload
   window.addEventListener('load', () => {
     const hash = window.location.hash.replace('#', '');
@@ -224,14 +454,19 @@ function initNavigation() {
 }
 
 function navigateToPage(pageId) {
+  closeProfilePage();
+
+  const mobileNavPanel = document.getElementById('mobile-nav-panel');
+  if (mobileNavPanel) mobileNavPanel.classList.remove('active');
+
   const navItems = document.querySelectorAll('.nav-item');
   const targetSection = document.getElementById(`${pageId}-page`);
-  
+
   // Format Title
   let formattedTitle = pageId.charAt(0).toUpperCase() + pageId.slice(1);
-  if (pageId === 'buddy') formattedTitle = 'AI Finance Buddy';
+  if (pageId === 'buddy') formattedTitle = 'Portfolio Analyzer';
   if (pageId === 'hero') formattedTitle = 'Home';
-  
+
   const pageTitleElement = document.getElementById('current-page-title');
   if (pageTitleElement) {
     pageTitleElement.textContent = formattedTitle;
@@ -247,6 +482,10 @@ function navigateToPage(pageId) {
     }
   });
 
+  document.querySelectorAll('.mobile-nav-item').forEach(nav => {
+    nav.classList.toggle('active', nav.getAttribute('data-page') === pageId);
+  });
+
   // Set window hash silently without page trigger loop
   window.history.pushState(null, null, `#${pageId}`);
 
@@ -259,6 +498,18 @@ function navigateToPage(pageId) {
   if (pageId === 'portfolio') {
     initPortfolioChart();
   }
+}
+
+// Profile is a standalone overlay page, separate from the continuous scroll flow
+// of the rest of the app — it only opens/closes via the account chip, not the main nav.
+function openProfilePage() {
+  document.getElementById('profile-page').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeProfilePage() {
+  document.getElementById('profile-page').classList.remove('active');
+  document.body.style.overflow = '';
 }
 
 function initScrollSpy() {
@@ -291,7 +542,7 @@ function initScrollSpy() {
         });
         
         let formattedTitle = id.charAt(0).toUpperCase() + id.slice(1);
-        if (id === 'buddy') formattedTitle = 'AI Finance Buddy';
+        if (id === 'buddy') formattedTitle = 'Portfolio Analyzer';
         if (id === 'hero') formattedTitle = 'Home';
         
         const pageTitleElement = document.getElementById('current-page-title');
@@ -335,6 +586,90 @@ function calculatePortfolioMetrics() {
     overallGainVal,
     overallGainPct
   };
+}
+
+// Target asset-class allocation per risk profile — same figures shown as
+// prose on the Profile page's risk description.
+const RISK_PROFILE_TARGETS = {
+  Conservative: { equity: 30, debt: 60, gold: 10 },
+  Moderate: { equity: 50, debt: 30, gold: 20 },
+  Aggressive: { equity: 75, debt: 15, gold: 10 },
+};
+
+// Portfolio Health Score card: computed live from real holdings/goals/risk
+// profile instead of the static demo numbers the markup ships with.
+function renderPortfolioHealthScore() {
+  const numEl = document.getElementById('health-score-num');
+  if (!numEl) return;
+
+  const { totalVal } = calculatePortfolioMetrics();
+
+  // Diversification: Herfindahl-Hirschman Index across individual holdings
+  // and across asset categories — fewer/more concentrated positions score lower.
+  let diversificationScore10 = 0;
+  if (totalVal > 0) {
+    const holdingWeights = state.holdings.map(h => h.currentValue / totalVal);
+    const hhiHoldings = holdingWeights.reduce((sum, w) => sum + w * w, 0);
+    const effectiveHoldings = hhiHoldings > 0 ? 1 / hhiHoldings : 0;
+
+    const categoryTotals = {};
+    state.holdings.forEach(h => {
+      categoryTotals[h.category] = (categoryTotals[h.category] || 0) + h.currentValue;
+    });
+    const categoryWeights = Object.values(categoryTotals).map(v => v / totalVal);
+    const hhiCategories = categoryWeights.reduce((sum, w) => sum + w * w, 0);
+    const effectiveCategories = hhiCategories > 0 ? 1 / hhiCategories : 0;
+
+    const holdingsScore = Math.min(effectiveHoldings / 8, 1) * 50;
+    const categoryScore = Math.min(effectiveCategories / 4, 1) * 50;
+    diversificationScore10 = (holdingsScore + categoryScore) / 10;
+  }
+
+  // Risk Alignment: how closely actual equity/debt/gold allocation matches
+  // the target mix for the user's stated risk profile.
+  let riskAlignmentScore10 = 10;
+  if (totalVal > 0) {
+    let equityVal = 0, goldVal = 0, debtVal = 0;
+    state.holdings.forEach(h => {
+      if (h.category === 'equity' || h.category === 'mf') equityVal += h.currentValue;
+      else if (h.category === 'gold') goldVal += h.currentValue;
+      else debtVal += h.currentValue; // fd, nps, etc. treated as stable/debt-like
+    });
+
+    const actual = {
+      equity: (equityVal / totalVal) * 100,
+      debt: (debtVal / totalVal) * 100,
+      gold: (goldVal / totalVal) * 100,
+    };
+    const target = RISK_PROFILE_TARGETS[state.user.riskProfile] || RISK_PROFILE_TARGETS.Moderate;
+    const totalDrift = Math.abs(actual.equity - target.equity) + Math.abs(actual.debt - target.debt) + Math.abs(actual.gold - target.gold);
+    riskAlignmentScore10 = Math.max(0, 10 - (totalDrift / 2) / 10);
+  }
+
+  // Goal Progress: average completion % across active goals.
+  let goalProgressScore10 = 0;
+  if (state.goals.length > 0) {
+    const avgCompletionPct = state.goals.reduce((sum, g) => sum + Math.min(g.saved / g.target, 1) * 100, 0) / state.goals.length;
+    goalProgressScore10 = avgCompletionPct / 10;
+  }
+
+  const overall = (diversificationScore10 + riskAlignmentScore10 + goalProgressScore10) / 3;
+
+  let healthLabel = 'Poor Health';
+  if (overall >= 7.5) healthLabel = 'Good Health';
+  else if (overall >= 5) healthLabel = 'Needs Improvement';
+
+  numEl.textContent = overall.toFixed(1);
+  document.getElementById('health-score-txt').textContent = healthLabel;
+
+  document.getElementById('health-score-div').textContent = `${diversificationScore10.toFixed(1)}/10`;
+  document.getElementById('health-bar-div').style.width = `${diversificationScore10 * 10}%`;
+
+  document.getElementById('health-score-risk').textContent = `${riskAlignmentScore10.toFixed(1)}/10`;
+  document.getElementById('health-bar-risk').style.width = `${riskAlignmentScore10 * 10}%`;
+
+  document.getElementById('health-score-goals').textContent = `${goalProgressScore10.toFixed(1)}/10`;
+  document.getElementById('health-bar-goals').style.width = `${goalProgressScore10 * 10}%`;
 }
 
 // 5. Render Core Components
@@ -708,7 +1043,7 @@ function renderPortfolioBreakdown() {
   }
   
   if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:32px; color:var(--text-muted);">No holdings in this asset class.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:32px; color:var(--text-muted);">No holdings in this asset class.</td></tr>`;
     return;
   }
   
@@ -717,16 +1052,15 @@ function renderPortfolioBreakdown() {
     tr.innerHTML = `
       <td>
         <div class="portfolio-asset-info">
-          <div class="portfolio-asset-logo ${h.category}">${h.shortName.substring(0, 4)}</div>
-          <div>
-            <div style="font-weight:600;">${h.name}</div>
-            <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">${h.category.toUpperCase()}</div>
+          <div class="portfolio-asset-logo ${h.category}" style="position:relative; overflow:hidden;">
+            <span>${h.shortName.substring(0, 4)}</span>
+            ${h.logoUrl ? `<img src="${h.logoUrl}" alt="" loading="lazy" onerror="this.remove()" style="position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:#fff; padding:4px;">` : ''}
+          </div>
+          <div style="min-width:0;">
+            <div style="font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${h.name}">${h.name}</div>
+            <div style="font-size:0.72rem; color:var(--text-secondary); margin-top:2px;">${h.category.toUpperCase()} · Invested ${formatRupee(h.invested)}</div>
           </div>
         </div>
-      </td>
-      <td style="text-align:right;">
-        <div style="font-weight:600;">${h.units.toFixed(2)}</div>
-        <div style="font-size:0.72rem; color:var(--text-secondary); margin-top:2px;">Invested: ${formatRupee(h.invested)}</div>
       </td>
       <td style="text-align:right; font-weight:700;">
         ${formatRupee(h.currentValue)}
@@ -752,10 +1086,17 @@ function renderInvestCatalog() {
 
   // Category tab
   const activeTab = document.querySelector('#invest-category-tabs .filter-tab.active');
-  const category = activeTab ? activeTab.getAttribute('data-category') : 'mf';
+  const category = activeTab ? activeTab.getAttribute('data-category') : 'equity';
 
   if (category === 'equity') {
-    renderEquityResults(lastEquitySearchResults);
+    const searchInputEl = document.getElementById('invest-stock-search-input');
+    const hasLiveQuery = searchInputEl && searchInputEl.value.trim().length > 0;
+    if (hasLiveQuery) {
+      renderEquityResults(lastEquitySearchResults);
+      return;
+    }
+    // No search yet — show the curated live equity catalog (real Yahoo Finance data).
+    renderCuratedEquityCatalog();
     return;
   }
 
@@ -766,7 +1107,14 @@ function renderInvestCatalog() {
       renderMutualFundResults(lastMutualFundSearchResults);
       return;
     }
-    // No search yet — fall through to the curated mock catalog below.
+    // No search yet — show the curated live fund catalog (real Yahoo Finance data).
+    renderCuratedMutualFundCatalog();
+    return;
+  }
+
+  if (category === 'gold') {
+    renderCuratedGoldCatalog();
+    return;
   }
 
   // Sub filter chip
@@ -792,16 +1140,10 @@ function renderInvestCatalog() {
     return;
   }
 
-  catalog.forEach((fund, index) => {
+  catalog.forEach((fund) => {
     const card = document.createElement('div');
-    
-    // Bento grid logic: first card is large featured, others fill around it
-    let bentoClass = 'b-c2 b-r1'; // default: 1/3 width, 1 row
-    if (index === 0) {
-      bentoClass = 'b-c4 b-r2 bento-accent-sky'; // featured: 2/3 width, 2 rows
-    }
-    
-    card.className = `glass-card fund-card ${bentoClass}`;
+
+    card.className = `glass-card fund-card b-c2 b-r1`;
     card.innerHTML = `
       <div>
         <div class="fund-header">
@@ -859,10 +1201,9 @@ function renderEquityResults(stocks) {
     return;
   }
 
-  stocks.forEach((stock, index) => {
+  stocks.forEach((stock) => {
     const card = document.createElement('div');
-    let bentoClass = 'b-c2 b-r1';
-    if (index === 0) bentoClass = 'b-c4 b-r2 bento-accent-sky';
+    const bentoClass = 'b-c2 b-r1';
 
     const isUp = stock.changePercent >= 0;
 
@@ -938,6 +1279,91 @@ function stockToFundShape(stock) {
   };
 }
 
+// Factory for "curated live catalog" tabs: fetch once from a real backend
+// endpoint, cache the result, and re-render from cache on subsequent visits
+// to that tab. `requireNoLiveQuery: true` means this category also has its
+// own live search override (equity/mf) — the fetched catalog is only painted
+// if the user hasn't since typed into the search box, so a slow response
+// can't clobber live search results that arrived first.
+function createCuratedCatalogLoader({ category, fetchFn, renderFn, label, requireNoLiveQuery = false }) {
+  let cache = null;
+  let promise = null;
+
+  return function load(filterQuery) {
+    const grid = document.getElementById('invest-funds-grid');
+
+    const paint = (items) => {
+      const filtered = filterQuery
+        ? items.filter((i) => i.name.toLowerCase().includes(filterQuery))
+        : items;
+      renderFn(filtered);
+    };
+
+    if (cache) {
+      paint(cache);
+      return;
+    }
+
+    grid.innerHTML = `
+      <div class="glass-card b-c4 b-r1" style="text-align:center; padding:32px; color:var(--text-muted);">
+        Loading live ${label} data…
+      </div>
+    `;
+
+    if (!promise) promise = fetchFn();
+
+    promise
+      .then((items) => {
+        cache = items;
+        const activeTab = document.querySelector('#invest-category-tabs .filter-tab.active');
+        const stillOnCategory = activeTab && activeTab.getAttribute('data-category') === category;
+        const searchInputEl = document.getElementById('invest-stock-search-input');
+        const stillNoQuery = !requireNoLiveQuery || !(searchInputEl && searchInputEl.value.trim().length > 0);
+        if (stillOnCategory && stillNoQuery) paint(items);
+      })
+      .catch(() => {
+        promise = null;
+        grid.innerHTML = `
+          <div class="glass-card b-c4 b-r1" style="text-align:center; padding:32px; color:var(--text-muted);">
+            Could not load live ${label} data right now. Please try again.
+          </div>
+        `;
+      });
+  };
+}
+
+// Mutual Funds tab — hand-picked flagship funds (Yahoo's Indian MF search
+// coverage is too inconsistent to query on the fly for a "browse" view).
+const renderCuratedMutualFundCatalog = createCuratedCatalogLoader({
+  category: 'mf',
+  fetchFn: getMutualFundCatalog,
+  renderFn: renderMutualFundResults,
+  label: 'mutual fund',
+  requireNoLiveQuery: true,
+});
+
+// Equities tab — curated large-cap NSE stocks shown before any search.
+const renderCuratedEquityCatalog = createCuratedCatalogLoader({
+  category: 'equity',
+  fetchFn: getEquityCatalog,
+  renderFn: renderEquityResults,
+  label: 'equity',
+  requireNoLiveQuery: true,
+});
+
+// Digital Gold tab — real Gold ETF quotes (no live search override here, so
+// the search box just filters this cached catalog client-side by name).
+const loadCuratedGoldCatalog = createCuratedCatalogLoader({
+  category: 'gold',
+  fetchFn: getGoldCatalog,
+  renderFn: renderEquityResults,
+  label: 'gold ETF',
+});
+
+function renderCuratedGoldCatalog() {
+  loadCuratedGoldCatalog(catalogSearchQuery);
+}
+
 // Live Mutual Fund Search Results Render (real NAV/returns from Yahoo, no mock data)
 function renderMutualFundResults(funds) {
   const grid = document.getElementById('invest-funds-grid');
@@ -952,10 +1378,9 @@ function renderMutualFundResults(funds) {
     return;
   }
 
-  funds.forEach((fund, index) => {
+  funds.forEach((fund) => {
     const card = document.createElement('div');
-    let bentoClass = 'b-c2 b-r1';
-    if (index === 0) bentoClass = 'b-c4 b-r2 bento-accent-sky';
+    const bentoClass = 'b-c2 b-r1';
 
     const isUp = fund.ytdReturn >= 0;
 
@@ -1207,7 +1632,7 @@ function initInvestStockSearch() {
 
   input.addEventListener('input', () => {
     const activeTab = document.querySelector('#invest-category-tabs .filter-tab.active');
-    const category = activeTab ? activeTab.getAttribute('data-category') : 'mf';
+    const category = activeTab ? activeTab.getAttribute('data-category') : 'equity';
 
     // Digital Gold / Fixed Deposits are still mock data (no real backend for
     // these yet) — just filter the local array.
@@ -1358,12 +1783,34 @@ function renderLearnHub() {
         <h5 class="explainer-title">${art.title}</h5>
         <div class="explainer-footer">
           <span>${art.readTime}</span>
-          <a href="#" class="card-link read-article-btn">Read Now <i data-lucide="arrow-right" style="width:12px;"></i></a>
+          <a href="#" class="card-link read-article-btn" data-explainer-id="${art.id}">Read Now <i data-lucide="arrow-right" style="width:12px;"></i></a>
         </div>
       `;
       explainersGrid.appendChild(card);
     });
+
+    if (window.lucide) lucide.createIcons();
+
+    explainersGrid.querySelectorAll('.read-article-btn').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        openExplainerArticle(btn.dataset.explainerId);
+      });
+    });
   }
+}
+
+function openExplainerArticle(explainerId) {
+  const article = state.explainers.find((art) => art.id === explainerId);
+  if (!article) return;
+
+  document.getElementById('explainer-article-cat').textContent = article.category.toUpperCase();
+  document.getElementById('explainer-article-difficulty').textContent = article.difficulty;
+  document.getElementById('explainer-article-title').textContent = article.title;
+  document.getElementById('explainer-article-readtime').textContent = article.readTime;
+  document.getElementById('explainer-article-body').innerHTML = article.body;
+
+  document.getElementById('modal-explainer-article').classList.add('active');
 }
 
 // F. Notifications Page Render
@@ -1503,6 +1950,7 @@ function renderAll() {
   renderLearnHub();
   renderNotifications();
   renderProfile();
+  renderPortfolioHealthScore();
   lucide.createIcons();
 }
 
@@ -1756,11 +2204,11 @@ function initLearnTabs() {
 window.switchLearnTab = function(btn, targetTab) {
   const tabs = document.querySelectorAll('.learn-tab');
   const sections = document.querySelectorAll('.learn-section');
-  
+
   // Toggle active tab class
   tabs.forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
-  
+
   // Toggle active section visibility
   sections.forEach(sec => {
     sec.classList.remove('active');
@@ -1891,38 +2339,87 @@ function renderQuiz() {
   });
 }
 
+const CHART_PERIOD_LABELS = { '1w': '1W Change', '1m': '1M Change', '3m': '3M Change', '1y': '1Y Change', all: 'All-Time Change' };
+
+// Fills the stats row below the chart: Current Value / Total Invested / Overall
+// Gain are real, computed straight from state.holdings. Period Change tracks
+// whichever timeframe button is active, derived from that range's own plotted
+// series (first point vs. last), since this app has no stored historical
+// snapshots to compute a genuine period-over-period return from.
+function updateChartStatsRow(timeframe, dataPoints) {
+  const currentValueEl = document.getElementById('chart-stat-current-value');
+  if (!currentValueEl) return;
+
+  const metrics = calculatePortfolioMetrics();
+
+  currentValueEl.textContent = formatRupee(metrics.totalVal);
+  document.getElementById('chart-stat-invested').textContent = formatRupee(metrics.totalInv);
+
+  const overallGainEl = document.getElementById('chart-stat-overall-gain');
+  const gainUp = metrics.overallGainVal >= 0;
+  overallGainEl.textContent = `${gainUp ? '+' : ''}${formatRupee(metrics.overallGainVal)} (${gainUp ? '+' : ''}${metrics.overallGainPct.toFixed(2)}%)`;
+  overallGainEl.className = `chart-stat-val ${gainUp ? 'up' : 'down'}`;
+  document.getElementById('chart-stat-overall-gain-icon').className = `chart-stat-icon ${gainUp ? 'up' : 'down'}`;
+
+  const series = dataPoints.data;
+  const periodChangeVal = series.length >= 2 ? series[series.length - 1] - series[0] : 0;
+  const periodChangePct = series.length >= 2 && series[0] !== 0 ? (periodChangeVal / series[0]) * 100 : 0;
+  const periodUp = periodChangeVal >= 0;
+
+  document.getElementById('chart-stat-period-label').textContent = CHART_PERIOD_LABELS[timeframe] || 'Change';
+  const periodChangeEl = document.getElementById('chart-stat-period-change');
+  periodChangeEl.textContent = `${periodUp ? '+' : ''}${formatRupee(periodChangeVal)} (${periodUp ? '+' : ''}${periodChangePct.toFixed(2)}%)`;
+  periodChangeEl.className = `chart-stat-val ${periodUp ? 'up' : 'down'}`;
+  document.getElementById('chart-stat-period-icon').className = `chart-stat-icon ${periodUp ? 'up' : 'down'}`;
+
+  if (window.lucide) lucide.createIcons();
+}
+
 // 8. Dynamic Portfolio Performance Graph (Chart.js)
-function initPortfolioChart() {
+let portfolioChartRequestId = 0;
+
+async function initPortfolioChart() {
   const ctx = document.getElementById('portfolioMainChart');
   if (!ctx) return;
-  
-  // Clean up if existing chart exists
-  if (portfolioChart) {
-    portfolioChart.destroy();
-  }
-  
+
   // Determine chart colors matching asset category
   const activeTab = document.querySelector('.filter-tab.active');
   const filterType = activeTab ? activeTab.getAttribute('data-filter') : 'all';
-  
+
   let strokeColor = '#3b82f6'; // default equity blue
   if (filterType === 'mf') strokeColor = '#10b981';
   if (filterType === 'gold') strokeColor = '#f59e0b';
   if (filterType === 'fd') strokeColor = '#8b5cf6';
   if (filterType === 'nps') strokeColor = '#06b6d4';
-  
+
+  const activeTfBtn = document.querySelector('.timeframe-selector .tf-btn.active');
+  const timeframe = activeTfBtn ? activeTfBtn.getAttribute('data-tf') : '3m';
+
+  // Real portfolio value history, reconstructed from each holding's actual
+  // historical price at each date (see backend getPerformance) — not mock
+  // data. Guard against out-of-order responses if the user clicks quickly.
+  const requestId = ++portfolioChartRequestId;
+  let dataPoints;
+  try {
+    dataPoints = await getPortfolioPerformance({ range: timeframe, category: filterType });
+  } catch (err) {
+    console.error('Failed to load real portfolio performance.', err);
+    dataPoints = { labels: [], data: [] };
+  }
+  if (requestId !== portfolioChartRequestId) return;
+
+  updateChartStatsRow(timeframe, dataPoints);
+
+  if (portfolioChart) {
+    portfolioChart.destroy();
+  }
+
   // Setup Gradient Fill
   const chartCtx = ctx.getContext('2d');
   const gradient = chartCtx.createLinearGradient(0, 0, 0, 300);
   gradient.addColorStop(0, hexToRgba(strokeColor, 0.15));
   gradient.addColorStop(1, hexToRgba(strokeColor, 0.0));
-  
-  // Generate mock dates/points based on timeframe
-  const activeTfBtn = document.querySelector('.timeframe-selector .tf-btn.active');
-  const timeframe = activeTfBtn ? activeTfBtn.getAttribute('data-tf') : '3m';
-  
-  const dataPoints = getChartDataForTimeframe(timeframe, filterType);
-  
+
   portfolioChart = new Chart(ctx, {
     type: 'line',
     data: {
@@ -1992,64 +2489,6 @@ function hexToRgba(hex, alpha) {
 }
 
 // Generate data mapping
-function getChartDataForTimeframe(tf, filterType) {
-  // Base allocation valuations
-  const metrics = calculatePortfolioMetrics();
-  let baseVal = metrics.totalVal;
-  
-  // If filtering a specific asset type, baseVal is different
-  if (filterType !== 'all') {
-    baseVal = state.holdings
-      .filter(h => h.category === filterType)
-      .reduce((acc, h) => acc + h.currentValue, 0);
-  }
-  
-  if (baseVal === 0) baseVal = 50000; // fallback
-  
-  let size = 10;
-  let labels = [];
-  let data = [];
-  
-  if (tf === '1w') {
-    size = 7;
-    labels = ['Thu', 'Fri', 'Sat', 'Sun', 'Mon', 'Tue', 'Wed'];
-    for(let i=0; i<size; i++) {
-      data.push(baseVal - (size - i - 1) * 600 - (Math.random() * 400));
-    }
-  } else if (tf === '1m') {
-    size = 12;
-    labels = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
-    for(let i=0; i<size; i++) {
-      data.push(baseVal - (size - i - 1) * 2000 + (Math.sin(i) * 1500));
-    }
-    labels = Array.from({length: size}, (_, i) => `Day ${i*2 + 1}`);
-  } else if (tf === '3m') {
-    size = 15;
-    labels = Array.from({length: size}, (_, i) => `Wk ${i + 1}`);
-    for(let i=0; i<size; i++) {
-      data.push(baseVal - (size - i - 1) * 4000 + (Math.cos(i) * 3000));
-    }
-  } else if (tf === '1y') {
-    size = 12;
-    labels = ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
-    for(let i=0; i<size; i++) {
-      data.push(baseVal - (size - i - 1) * 10000 + (Math.sin(i) * 5000));
-    }
-  } else { // ALL
-    size = 8;
-    labels = ['2020', '2021', '2022', '2023', '2024', '2025', '2026'];
-    for(let i=0; i<size; i++) {
-      data.push(baseVal - (size - i - 1) * 45000 + (Math.cos(i) * 12000));
-    }
-    labels = Array.from({length: size}, (_, i) => `'${20 - size + i + 1}`);
-  }
-  
-  // Set the final point to exactly reflect the active calculated valuation
-  data[data.length - 1] = baseVal;
-  
-  return { labels, data };
-}
-
 // Attach timeframe and sort changes to redraw
 function bindPortfolioEvents() {
   // Filters switching
@@ -2488,7 +2927,10 @@ function setupModals() {
   // Generic open/close functions
   const openModal = (id) => document.getElementById(id).classList.add('active');
   const closeModal = (id) => document.getElementById(id).classList.remove('active');
-  
+
+  // Explainer Article
+  document.getElementById('close-modal-explainer-article').addEventListener('click', () => closeModal('modal-explainer-article'));
+
   // A. Add Funds
   document.getElementById('action-add-funds').addEventListener('click', () => openModal('modal-add-funds'));
   document.getElementById('close-modal-funds').addEventListener('click', () => closeModal('modal-add-funds'));
@@ -2863,27 +3305,62 @@ function renderQuizModalFlow() {
 }
 
 // 12. AI Finance Buddy Chatbot
-const chatSessionId = `session-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
-function setupChatbot() {
-  const sendBtn = document.getElementById('chat-send-btn');
-  const chatInput = document.getElementById('chat-input-field');
-  const chatWindow = document.getElementById('chat-messages');
-
-  if (!sendBtn || !chatInput || !chatWindow) return;
-
+// Reusable chat engine — instantiated once for the full Finance Buddy page,
+// and again for the floating widget available from anywhere on the site.
+function createChatWidget({ messagesEl, inputEl, sendBtnEl, chipsContainerEl }) {
+  const sessionId = `session-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const TYPEWRITER_MS_PER_CHAR = 15; // ~65 chars/sec
 
-  const askBuddy = async (txt) => {
-    appendChatMessage("user", txt);
-    showChatbotTypingIndicator();
+  function appendMessage(sender, text) {
+    const wrapper = document.createElement('div');
+    wrapper.className = `message-wrapper ${sender}`;
+
+    const isAi = sender === 'ai';
+    const avatarText = isAi ? 'AI' : 'UA';
+
+    wrapper.innerHTML = `
+      <div class="message-avatar">${avatarText}</div>
+      <div class="message-bubble">
+        ${formatMarkdown(text)}
+      </div>
+    `;
+    messagesEl.appendChild(wrapper);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    return wrapper.querySelector('.message-bubble');
+  }
+
+  function showTypingIndicator() {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'message-wrapper ai';
+    wrapper.dataset.typingIndicator = 'true';
+
+    wrapper.innerHTML = `
+      <div class="message-avatar">AI</div>
+      <div class="message-bubble" style="padding: 8px 16px;">
+        <div class="typing-indicator">
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+        </div>
+      </div>
+    `;
+    messagesEl.appendChild(wrapper);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function removeTypingIndicator() {
+    const indicator = messagesEl.querySelector('[data-typing-indicator="true"]');
+    if (indicator) indicator.remove();
+  }
+
+  async function askBuddy(txt) {
+    appendMessage("user", txt);
+    showTypingIndicator();
 
     let bubble = null;
     let fullText = '';
     let shownLength = 0;
     let typewriterTimer = null;
-
-    const container = document.getElementById('chat-messages');
 
     const revealNextChar = () => {
       if (shownLength >= fullText.length) {
@@ -2892,15 +3369,15 @@ function setupChatbot() {
       }
       shownLength++;
       bubble.textContent = fullText.slice(0, shownLength);
-      container.scrollTop = container.scrollHeight;
+      messagesEl.scrollTop = messagesEl.scrollHeight;
       typewriterTimer = setTimeout(revealNextChar, TYPEWRITER_MS_PER_CHAR);
     };
 
     try {
-      await streamChatMessage({ message: txt, sessionId: chatSessionId }, (chunk) => {
+      await streamChatMessage({ message: txt, sessionId }, (chunk) => {
         if (!bubble) {
-          removeChatbotTypingIndicator();
-          bubble = appendChatMessage("ai", "");
+          removeTypingIndicator();
+          bubble = appendMessage("ai", "");
         }
         fullText += chunk;
         if (!typewriterTimer) revealNextChar();
@@ -2914,86 +3391,304 @@ function setupChatbot() {
       if (bubble) {
         bubble.innerHTML = formatMarkdown(fullText);
       } else {
-        removeChatbotTypingIndicator();
-        appendChatMessage("ai", "Sorry, I couldn't generate a response.");
+        removeTypingIndicator();
+        appendMessage("ai", "Sorry, I couldn't generate a response.");
       }
     } catch (err) {
       if (typewriterTimer) clearTimeout(typewriterTimer);
-      removeChatbotTypingIndicator();
+      removeTypingIndicator();
       if (bubble) {
         bubble.closest('.message-wrapper').remove();
       }
-      appendChatMessage("ai", "Sorry, Finance Buddy is currently unavailable. Please try again in a moment.");
+      appendMessage("ai", "Sorry, Finance Buddy is currently unavailable. Please try again in a moment.");
     }
-  };
+  }
 
   const sendMessage = () => {
-    const txt = chatInput.value.trim();
+    const txt = inputEl.value.trim();
     if (txt.length === 0) return;
-    chatInput.value = '';
+    inputEl.value = '';
     askBuddy(txt);
   };
 
-  sendBtn.addEventListener('click', sendMessage);
-  chatInput.addEventListener('keydown', (e) => {
+  sendBtnEl.addEventListener('click', sendMessage);
+  inputEl.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') sendMessage();
   });
 
-  // Suggested Questions chips
-  document.querySelectorAll('.suggested-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      askBuddy(chip.textContent);
+  if (chipsContainerEl) {
+    chipsContainerEl.querySelectorAll('.suggested-chip').forEach(chip => {
+      chip.addEventListener('click', () => askBuddy(chip.textContent));
     });
+  }
+
+  return { askBuddy };
+}
+
+function setupFloatingChatWidget() {
+  const anchor = document.getElementById('fab-chat-anchor');
+  const toggleBtn = document.getElementById('fab-chat-toggle');
+  const panel = document.getElementById('fab-chat-panel');
+  const closeBtn = document.getElementById('fab-chat-close-btn');
+  const messagesEl = document.getElementById('fab-chat-messages');
+  const inputEl = document.getElementById('fab-chat-input-field');
+  const sendBtnEl = document.getElementById('fab-chat-send-btn');
+  const chipsContainerEl = document.getElementById('fab-suggested-questions-row');
+
+  if (!anchor || !toggleBtn || !panel || !messagesEl || !inputEl || !sendBtnEl) return;
+
+  createChatWidget({ messagesEl, inputEl, sendBtnEl, chipsContainerEl });
+
+  // Position the chat panel next to wherever the anchor currently is,
+  // flipping to whichever side/edge keeps it fully on-screen.
+  const positionPanel = () => {
+    const rect = anchor.getBoundingClientRect();
+    const gap = 12;
+    const panelWidth = Math.min(380, window.innerWidth - 32);
+    const panelHeight = Math.min(560, window.innerHeight - 140);
+
+    const opensAbove = rect.top - panelHeight - gap > 0;
+    // Prefer extending rightward from the button's left edge, but only if the
+    // panel actually fits — otherwise anchor to the button's right edge instead
+    // so the panel extends leftward and stays fully on-screen.
+    const opensRightward = rect.left + panelWidth <= window.innerWidth;
+
+    panel.style.width = `${panelWidth}px`;
+    panel.style.height = `${panelHeight}px`;
+
+    if (opensAbove) {
+      panel.style.top = 'auto';
+      panel.style.bottom = `${window.innerHeight - rect.top + gap}px`;
+    } else {
+      panel.style.bottom = 'auto';
+      panel.style.top = `${rect.bottom + gap}px`;
+    }
+
+    if (opensRightward) {
+      panel.style.right = 'auto';
+      panel.style.left = `${rect.left}px`;
+    } else {
+      panel.style.left = 'auto';
+      panel.style.right = `${window.innerWidth - rect.right}px`;
+    }
+  };
+
+  const openPanel = () => {
+    positionPanel();
+    panel.classList.add('active');
+    toggleBtn.classList.add('active');
+    anchor.classList.add('panel-open');
+  };
+
+  const closePanel = () => {
+    panel.classList.remove('active');
+    toggleBtn.classList.remove('active');
+    anchor.classList.remove('panel-open');
+  };
+
+  toggleBtn.addEventListener('click', () => {
+    if (panel.classList.contains('active')) closePanel();
+    else openPanel();
+  });
+
+  if (closeBtn) {
+    closeBtn.addEventListener('click', closePanel);
+  }
+
+  // Dragging — a pointer-based drag with a small movement threshold so a
+  // plain click still toggles the chat instead of being swallowed as a drag.
+  let dragging = false;
+  let moved = false;
+  let startX = 0;
+  let startY = 0;
+  let originLeft = 0;
+  let originTop = 0;
+
+  toggleBtn.addEventListener('pointerdown', (e) => {
+    dragging = true;
+    moved = false;
+    const rect = anchor.getBoundingClientRect();
+    originLeft = rect.left;
+    originTop = rect.top;
+    startX = e.clientX;
+    startY = e.clientY;
+
+    anchor.style.right = 'auto';
+    anchor.style.bottom = 'auto';
+    anchor.style.left = `${originLeft}px`;
+    anchor.style.top = `${originTop}px`;
+
+    toggleBtn.setPointerCapture(e.pointerId);
+  });
+
+  toggleBtn.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+      if (!moved) anchor.classList.add('dragging');
+      moved = true;
+    }
+    if (!moved) return;
+
+    const rect = anchor.getBoundingClientRect();
+    const maxLeft = window.innerWidth - rect.width;
+    const maxTop = window.innerHeight - rect.height;
+    const newLeft = Math.min(Math.max(0, originLeft + dx), maxLeft);
+    const newTop = Math.min(Math.max(0, originTop + dy), maxTop);
+
+    anchor.style.left = `${newLeft}px`;
+    anchor.style.top = `${newTop}px`;
+
+    if (panel.classList.contains('active')) positionPanel();
+  });
+
+  const endDrag = (e) => {
+    if (!dragging) return;
+    dragging = false;
+    anchor.classList.remove('dragging');
+    if (toggleBtn.hasPointerCapture(e.pointerId)) {
+      toggleBtn.releasePointerCapture(e.pointerId);
+    }
+    if (moved) {
+      // Suppress the click event this same interaction would otherwise fire,
+      // so ending a drag doesn't also toggle the chat panel open/closed.
+      const suppressClick = (clickEvent) => {
+        clickEvent.stopImmediatePropagation();
+        clickEvent.preventDefault();
+      };
+      toggleBtn.addEventListener('click', suppressClick, { capture: true, once: true });
+    }
+  };
+
+  toggleBtn.addEventListener('pointerup', endDrag);
+  toggleBtn.addEventListener('pointercancel', endDrag);
+
+  window.addEventListener('resize', () => {
+    if (panel.classList.contains('active')) positionPanel();
   });
 }
 
-function appendChatMessage(sender, text) {
-  const container = document.getElementById('chat-messages');
-  const wrapper = document.createElement('div');
-  wrapper.className = `message-wrapper ${sender}`;
-  
-  const isAi = sender === 'ai';
-  const avatarText = isAi ? 'AI' : 'UA';
-  
-  wrapper.innerHTML = `
-    <div class="message-avatar">${avatarText}</div>
-    <div class="message-bubble">
-      ${formatMarkdown(text)}
-    </div>
-  `;
-  container.appendChild(wrapper);
-  container.scrollTop = container.scrollHeight;
-  return wrapper.querySelector('.message-bubble');
+// 12b. Portfolio Analyzer
+const portfolioAnalysisSessionId = `session-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+// Real holdings (fetched from the backend) carry a category — 'equity',
+// 'mf', or 'gold' — but no per-holding sector data (Yahoo Finance's basic
+// quote doesn't include it), so sector is a generic default per category
+// rather than something fabricated per individual holding.
+const ANALYZER_ASSET_TYPE_BY_CATEGORY = {
+  mf: "Mutual Fund",
+  equity: "Equity",
+  gold: "Gold",
+};
+
+const ANALYZER_SECTOR_BY_CATEGORY = {
+  mf: "Diversified",
+  equity: "Equity",
+  gold: "Commodities",
+};
+
+function buildPortfolioAnalysisPayload() {
+  const holdings = state.holdings.map((h) => ({
+    asset_name: h.name,
+    asset_type: ANALYZER_ASSET_TYPE_BY_CATEGORY[h.category] || "Equity",
+    sector: ANALYZER_SECTOR_BY_CATEGORY[h.category] || "General",
+    quantity: h.units,
+    avg_buy_price: h.invested / h.units,
+    current_price: h.currentValue / h.units,
+  }));
+
+  return {
+    user_id: auth.currentUser?.uid || 'demo-user',
+    session_id: portfolioAnalysisSessionId,
+    holdings,
+  };
 }
 
-function showChatbotTypingIndicator() {
-  const container = document.getElementById('chat-messages');
-  const wrapper = document.createElement('div');
-  wrapper.className = 'message-wrapper ai';
-  wrapper.id = 'chat-typing-indicator-node';
-  
-  wrapper.innerHTML = `
-    <div class="message-avatar">AI</div>
-    <div class="message-bubble" style="padding: 8px 16px;">
-      <div class="typing-indicator">
-        <div class="typing-dot"></div>
-        <div class="typing-dot"></div>
-        <div class="typing-dot"></div>
-      </div>
-    </div>
-  `;
-  container.appendChild(wrapper);
-  container.scrollTop = container.scrollHeight;
+function setupPortfolioAnalyzer() {
+  const runBtn = document.getElementById('portfolio-analyzer-run-btn');
+  if (!runBtn) return;
+
+  runBtn.addEventListener('click', runPortfolioAnalysis);
 }
 
-function removeChatbotTypingIndicator() {
-  const indicator = document.getElementById('chat-typing-indicator-node');
-  if (indicator) {
-    indicator.remove();
+async function runPortfolioAnalysis() {
+  const idleEl = document.getElementById('portfolio-analyzer-idle');
+  const loadingEl = document.getElementById('portfolio-analyzer-loading');
+  const resultEl = document.getElementById('portfolio-analyzer-result');
+
+  idleEl.style.display = 'none';
+  resultEl.style.display = 'none';
+  loadingEl.style.display = 'block';
+
+  try {
+    const result = await analyzePortfolio(buildPortfolioAnalysisPayload());
+    renderPortfolioAnalysisResult(result);
+    loadingEl.style.display = 'none';
+    resultEl.style.display = 'block';
+    renderAuditLog();
+  } catch (err) {
+    loadingEl.style.display = 'none';
+    idleEl.style.display = 'block';
+    alert('Could not analyze your portfolio right now. The Portfolio Analyzer service may be unavailable.');
   }
 }
 
-// 12b. Portfolio Analyzer Audit Log
+const ANALYZER_RISK_COLOR = { Low: 'var(--color-success)', Moderate: 'var(--color-warning)', High: 'var(--color-danger, #dc2626)' };
+
+function renderPortfolioAnalysisResult(result) {
+  const resultEl = document.getElementById('portfolio-analyzer-result');
+  const risk = result.risk_analysis;
+  const rec = result.recommendations;
+  const riskColor = ANALYZER_RISK_COLOR[risk.overall_risk] || 'var(--text-primary)';
+
+  const warningsHtml = risk.warnings.length
+    ? `<ul style="margin:8px 0 0; padding-left:18px; font-size:0.78rem; color:var(--text-secondary); line-height:1.5;">
+        ${risk.warnings.map(w => `<li>${w}</li>`).join('')}
+      </ul>`
+    : '';
+
+  const recommendationsHtml = rec.recommendations.length
+    ? `<ul style="margin:8px 0 0; padding-left:18px; font-size:0.78rem; line-height:1.5;">
+        ${rec.recommendations.map(r => `<li>${r}</li>`).join('')}
+      </ul>`
+    : '';
+
+  resultEl.innerHTML = `
+    <div style="display:flex; gap:10px; margin-bottom:14px;">
+      <div style="flex:1; text-align:center; padding:10px; border-radius:10px; background:rgba(37,99,235,0.06);">
+        <div style="font-size:1.3rem; font-weight:700;">${result.health_score}/100</div>
+        <div style="font-size:0.7rem; color:var(--text-secondary);">${result.health_label}</div>
+      </div>
+      <div style="flex:1; text-align:center; padding:10px; border-radius:10px; background:rgba(37,99,235,0.06);">
+        <div style="font-size:1.3rem; font-weight:700; color:${riskColor};">${risk.overall_risk}</div>
+        <div style="font-size:0.7rem; color:var(--text-secondary);">Overall Risk</div>
+      </div>
+    </div>
+
+    <div style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:4px;">
+      Diversification Score: <strong style="color:var(--text-primary);">${risk.diversification_score}/100</strong>
+    </div>
+    ${warningsHtml}
+
+    <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border-glass);">
+      <strong style="font-size:0.85rem;">AI Insight</strong>
+      <p style="font-size:0.8rem; line-height:1.5; margin-top:6px;">${rec.overall_summary}</p>
+      ${recommendationsHtml}
+    </div>
+
+    <p style="font-size:0.68rem; color:var(--text-muted); margin-top:14px;">${rec.disclaimer}</p>
+
+    <button class="btn btn-secondary" id="portfolio-analyzer-rerun-btn" style="width:100%; justify-content:center; margin-top:12px;">
+      Re-analyze
+    </button>
+  `;
+
+  document.getElementById('portfolio-analyzer-rerun-btn').addEventListener('click', runPortfolioAnalysis);
+  if (window.lucide) lucide.createIcons();
+}
+
+// 12c. Portfolio Analyzer Audit Log
 function setupAuditLog() {
   const refreshBtn = document.getElementById('audit-log-refresh-btn');
   if (!refreshBtn) return;
@@ -3009,41 +3704,145 @@ async function renderAuditLog() {
   list.innerHTML = `<p style="font-size:0.8rem; color:var(--text-secondary);">Loading audit log...</p>`;
 
   try {
-    const { entries } = await getAuditLog();
+    const { entries } = await getAuditLog({ userId: auth.currentUser?.uid });
 
     if (!entries || entries.length === 0) {
       list.innerHTML = `<p style="font-size:0.8rem; color:var(--text-secondary);">No audit log entries yet. Entries appear here once a portfolio analysis is run.</p>`;
       return;
     }
 
-    list.innerHTML = entries
-      .slice()
-      .reverse()
-      .map((entry) => {
+    const orderedEntries = entries.slice().reverse();
+
+    list.innerHTML = orderedEntries
+      .map((entry, i) => {
         const time = new Date(entry.timestamp).toLocaleString();
+        const risk = entry.response?.risk_analysis;
         const healthLabel = entry.response?.health_label ?? 'N/A';
-        const overallRisk = (entry.response?.risk_analysis?.match(/overall_risk=<RiskLevel\.(\w+)/) || [])[1] ?? 'N/A';
+        const overallRisk = risk?.overall_risk ?? 'N/A';
         const holdingsCount = entry.request?.holdings?.length ?? 0;
 
         return `
-          <div style="border:1px solid var(--border-color, rgba(0,0,0,0.08)); border-radius:10px; padding:10px 14px;">
-            <div style="display:flex; justify-content:space-between; font-size:0.78rem; color:var(--text-secondary); margin-bottom:4px;">
-              <span>${time}</span>
-              <span>Session: ${entry.session_id ?? 'N/A'}</span>
-            </div>
-            <div style="font-size:0.85rem;">
-              <strong>User:</strong> ${entry.user_id ?? 'N/A'} &nbsp;·&nbsp;
-              <strong>Holdings:</strong> ${holdingsCount} &nbsp;·&nbsp;
-              <strong>Risk:</strong> ${overallRisk} &nbsp;·&nbsp;
-              <strong>Health:</strong> ${healthLabel}
+          <div style="border:1px solid var(--border-color, rgba(0,0,0,0.08)); border-radius:10px; overflow:hidden; flex-shrink:0;">
+            <button class="audit-log-row-toggle" data-audit-index="${i}">
+              <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.78rem; color:var(--text-secondary); margin-bottom:4px;">
+                <span>${time}</span>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span>Session: ${entry.session_id ?? 'N/A'}</span>
+                  <i data-lucide="chevron-down" class="audit-log-chevron" style="width:14px; height:14px; transition: transform 0.2s;"></i>
+                </div>
+              </div>
+              <div style="font-size:0.85rem;">
+                <strong>User:</strong> ${entry.user_id ?? 'N/A'} &nbsp;·&nbsp;
+                <strong>Holdings:</strong> ${holdingsCount} &nbsp;·&nbsp;
+                <strong>Risk:</strong> ${overallRisk} &nbsp;·&nbsp;
+                <strong>Health:</strong> ${healthLabel}
+              </div>
+            </button>
+            <div class="audit-log-detail" id="audit-log-detail-${i}" style="display:none; padding:0 14px 14px; border-top:1px solid var(--border-color, rgba(0,0,0,0.08));">
+              ${formatAuditLogDetail(entry)}
             </div>
           </div>
         `;
       })
       .join('');
+
+    list.querySelectorAll('.audit-log-row-toggle').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const idx = btn.dataset.auditIndex;
+        const detail = document.getElementById(`audit-log-detail-${idx}`);
+        const chevron = btn.querySelector('.audit-log-chevron');
+        const isOpen = detail.style.display !== 'none';
+        detail.style.display = isOpen ? 'none' : 'block';
+        chevron.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+      });
+    });
+
+    if (window.lucide) lucide.createIcons();
   } catch (err) {
     list.innerHTML = `<p style="font-size:0.8rem; color:var(--color-danger, #d33);">Could not load audit log. The Portfolio Analyzer service may be unavailable.</p>`;
   }
+}
+
+function formatAuditLogDetail(entry) {
+  const holdings = entry.request?.holdings ?? [];
+  const risk = entry.response?.risk_analysis;
+  const rec = entry.response?.recommendations;
+  const pa = entry.response?.portfolio_analysis;
+
+  // Entries logged before a serialization fix stored these as plain Python
+  // repr strings instead of structured JSON — nothing to render for those.
+  const isLegacyFormat = (risk && typeof risk !== 'object') || (rec && typeof rec !== 'object') || (pa && typeof pa !== 'object');
+  if (isLegacyFormat) {
+    return `
+      <div style="font-size:0.78rem; line-height:1.6; padding-top:10px; color:var(--text-secondary);">
+        Detailed breakdown isn't available for this entry — it was logged before a data formatting fix.
+        Run a new analysis to see full details here.
+      </div>
+    `;
+  }
+
+  const holdingsRows = holdings
+    .map(h => `
+      <tr>
+        <td style="padding:4px 8px 4px 0;">${h.asset_name}</td>
+        <td style="padding:4px 8px;">${h.asset_type}</td>
+        <td style="padding:4px 8px;">${h.sector}</td>
+        <td style="padding:4px 8px; text-align:right;">${h.quantity}</td>
+        <td style="padding:4px 0 4px 8px; text-align:right;">${formatRupee(h.current_value ?? h.quantity * h.current_price)}</td>
+      </tr>
+    `)
+    .join('');
+
+  const warningsHtml = risk?.warnings?.length
+    ? `<ul style="margin:4px 0 0; padding-left:16px;">${risk.warnings.map(w => `<li>${w}</li>`).join('')}</ul>`
+    : '<span style="color:var(--text-secondary);">None</span>';
+
+  const sectorConcentrationHtml = risk?.sector_concentration
+    ? Object.entries(risk.sector_concentration).map(([sector, pct]) => `${sector}: ${pct}%`).join(' · ')
+    : 'N/A';
+
+  const recommendationsHtml = rec?.recommendations?.length
+    ? `<ul style="margin:4px 0 0; padding-left:16px;">${rec.recommendations.map(r => `<li>${r}</li>`).join('')}</ul>`
+    : '<span style="color:var(--text-secondary);">None</span>';
+
+  return `
+    <div style="font-size:0.78rem; line-height:1.6; padding-top:10px;">
+      <strong>Holdings submitted</strong>
+      <table style="width:100%; border-collapse:collapse; margin:6px 0 12px; font-size:0.76rem;">
+        <thead>
+          <tr style="color:var(--text-secondary); text-align:left;">
+            <th style="padding:2px 8px 2px 0;">Asset</th>
+            <th style="padding:2px 8px;">Type</th>
+            <th style="padding:2px 8px;">Sector</th>
+            <th style="padding:2px 8px; text-align:right;">Qty</th>
+            <th style="padding:2px 0 2px 8px; text-align:right;">Value</th>
+          </tr>
+        </thead>
+        <tbody>${holdingsRows}</tbody>
+      </table>
+
+      <strong>Portfolio Analysis</strong>
+      <p style="margin:4px 0 12px;">
+        Total value: <strong>${pa ? formatRupee(pa.total_portfolio_value) : 'N/A'}</strong> ·
+        Largest holding: <strong>${pa?.largest_holding ?? 'N/A'}</strong>
+        (${pa ? pa.largest_holding_percentage.toFixed(1) : '0'}%)
+      </p>
+
+      <strong>Risk Analysis</strong>
+      <p style="margin:4px 0 6px;">
+        Concentration risk: <strong>${risk?.concentration_risk ?? 'N/A'}</strong> ·
+        Diversification score: <strong>${risk?.diversification_score ?? 'N/A'}/100</strong>
+      </p>
+      <p style="margin:0 0 4px; color:var(--text-secondary);">Sector concentration: ${sectorConcentrationHtml}</p>
+      <div style="margin-bottom:12px;">Warnings: ${warningsHtml}</div>
+
+      <strong>AI Recommendations</strong>
+      <p style="margin:4px 0 6px;">${rec?.overall_summary ?? 'N/A'}</p>
+      ${recommendationsHtml}
+
+      <p style="margin-top:12px; color:var(--text-muted); font-size:0.7rem;">${rec?.disclaimer ?? ''}</p>
+    </div>
+  `;
 }
 
 // Markdown Formatter
@@ -3095,8 +3894,9 @@ document.addEventListener('DOMContentLoaded', () => {
   initCalculatorTabs();
   initLearnTabs();
   renderQuiz();
-  setupChatbot();
+  setupFloatingChatWidget();
   setupAuditLog();
+  setupPortfolioAnalyzer();
   
   // Close welcome nudge card alert logic
   const closeNudgeBtn = document.getElementById('close-dashboard-nudge');
@@ -3119,7 +3919,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const topbarSettingsBtn = document.getElementById('topbar-settings-btn');
   if (topbarSettingsBtn) {
     topbarSettingsBtn.addEventListener('click', () => {
-      navigateToPage('profile');
+      openProfilePage();
     });
   }
   
@@ -3135,10 +3935,28 @@ document.addEventListener('DOMContentLoaded', () => {
   const sidebarSettingsBtn = document.getElementById('sidebar-settings-btn');
   if (sidebarSettingsBtn) {
     sidebarSettingsBtn.addEventListener('click', () => {
-      navigateToPage('profile');
+      openProfilePage();
     });
   }
-  
+
+  const profileBackBtn = document.getElementById('profile-back-btn');
+  if (profileBackBtn) {
+    profileBackBtn.addEventListener('click', closeProfilePage);
+  }
+
+  const profileSignOutBtn = document.getElementById('profile-signout-btn');
+  if (profileSignOutBtn) {
+    profileSignOutBtn.addEventListener('click', async () => {
+      try {
+        await signOut(auth);
+        closeProfilePage();
+      } catch (err) {
+        alert('Sign out failed. Please try again.');
+      }
+    });
+  }
+
+
   // Notifications mark all read button
   const notifMarkReadBtn = document.getElementById('notif-mark-read-btn');
   if (notifMarkReadBtn) {

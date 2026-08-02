@@ -15,10 +15,6 @@ export function checkHealth() {
 
 // ─── User / Profile ───────────────────────────────────────────────────────────
 
-export function syncUser() {
-  return apiRequest(ENDPOINTS.userSync, { method: 'POST' });
-}
-
 /**
  * GET /api/v1/users/me
  * @returns {Promise<{
@@ -33,6 +29,15 @@ export function syncUser() {
  */
 export function getCurrentUser() {
   return apiRequest(ENDPOINTS.userMe);
+}
+
+/**
+ * POST /api/users/sync — creates the user's Mongo record on first login
+ * (and assigns a random mock portfolio server-side). Safe to call on every
+ * login; it's a no-op for existing users.
+ */
+export function syncUser() {
+  return apiRequest(ENDPOINTS.userSync, { method: 'POST' });
 }
 
 /**
@@ -92,6 +97,17 @@ export function exportHoldingsCsv() {
  */
 export function getPortfolioPerformance(params) {
   return apiRequest(ENDPOINTS.portfolioPerformance, { params });
+}
+
+/**
+ * POST /api/v1/portfolio/analyze
+ * @param {{ user_id: string, session_id: string, holdings: object[] }} payload
+ */
+export function analyzePortfolio(payload) {
+  return apiRequest(ENDPOINTS.portfolioAnalyze, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }
 
 // ─── Transactions ─────────────────────────────────────────────────────────────
@@ -285,6 +301,21 @@ export function getStockChart(symbol, params) {
 /** GET /api/market/indices */
 export function getMarketIndices() {
   return apiRequest(ENDPOINTS.marketIndices);
+}
+
+/** GET /api/market/mutual-funds/catalog — live Indian mutual fund data from Yahoo Finance */
+export function getMutualFundCatalog() {
+  return apiRequest(ENDPOINTS.mutualFundCatalog);
+}
+
+/** GET /api/market/equities/catalog — live curated NSE large-cap stock data */
+export function getEquityCatalog() {
+  return apiRequest(ENDPOINTS.equityCatalog);
+}
+
+/** GET /api/market/gold/catalog — live Gold ETF data (real-market proxy for digital gold) */
+export function getGoldCatalog() {
+  return apiRequest(ENDPOINTS.goldCatalog);
 }
 
 // ─── SIPs ───────────────────────────────────────────────────────────────────────

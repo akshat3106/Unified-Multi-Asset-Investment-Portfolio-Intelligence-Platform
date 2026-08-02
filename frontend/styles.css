@@ -499,6 +499,50 @@ body {
   grid-row: span 3;
 }
 
+/* Below tablet width, every bento card goes full-width and stacks — the
+   12-column grid has no room left to divide fairly once cards' own min
+   content width (icons, multi-stat rows, long fund names) exceeds their
+   fair share, which otherwise forces the whole grid wider than the viewport. */
+@media (max-width: 900px) {
+  .bento-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .b-c1,
+  .b-c2,
+  .b-c3,
+  .b-c4,
+  .b-c5,
+  .b-c6 {
+    grid-column: 1 / -1;
+  }
+
+  .b-r1,
+  .b-r2,
+  .b-r3 {
+    grid-row: auto;
+  }
+
+  .welcome-row {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .welcome-sub {
+    flex-wrap: wrap;
+  }
+
+  .welcome-actions {
+    flex-wrap: wrap;
+  }
+
+  /* Keep card content clear of the floating chat button/label docked in the
+     bottom-right corner on small screens. */
+  .content-area {
+    padding-bottom: 90px;
+  }
+}
+
 /* Hero / featured card – large with gradient accent */
 .bento-hero {
   background: linear-gradient(145deg, #312e81 0%, #4f46e5 60%, #6366f1 100%);
@@ -1731,6 +1775,101 @@ body {
   position: relative;
 }
 
+.chart-stats-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-glass);
+}
+
+.chart-stat-tile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  min-width: 0;
+  border-radius: var(--border-radius-md);
+  background: rgba(37, 99, 235, 0.04);
+  border: 1px solid var(--border-glass);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.chart-stat-tile:hover {
+  transform: translateY(-2px);
+  background: rgba(37, 99, 235, 0.07);
+}
+
+.chart-stat-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(37, 99, 235, 0.12);
+  color: var(--color-equity);
+}
+
+.chart-stat-icon i {
+  width: 18px;
+  height: 18px;
+}
+
+.chart-stat-icon.neutral {
+  background: rgba(37, 99, 235, 0.12);
+  color: var(--color-equity);
+}
+
+.chart-stat-icon.up {
+  background: rgba(16, 185, 129, 0.14);
+  color: var(--color-success);
+}
+
+.chart-stat-icon.down {
+  background: rgba(220, 38, 38, 0.12);
+  color: var(--color-danger, #dc2626);
+}
+
+.chart-stat-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.chart-stat-label {
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.chart-stat-val {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chart-stat-val.up {
+  color: var(--color-success);
+}
+
+.chart-stat-val.down {
+  color: var(--color-danger, #dc2626);
+}
+
+@media (max-width: 420px) {
+  .chart-stats-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Invest Tab & Fund Cards */
 .fund-card {
   padding: 24px;
@@ -2307,12 +2446,6 @@ body {
   gap: 24px;
 }
 
-.chat-panel {
-  display: flex;
-  flex-direction: column;
-  height: calc(100vh - var(--topbar-height) - 100px);
-}
-
 .chat-header {
   display: flex;
   align-items: center;
@@ -2340,21 +2473,20 @@ body {
   margin-top: 2px;
 }
 
-.status-badge {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.72rem;
-  color: var(--color-success);
-  font-weight: 600;
-}
-
-.status-dot {
-  width: 6px;
-  height: 6px;
-  background: var(--color-success);
-  border-radius: 99px;
-  box-shadow: 0 0 8px var(--color-success);
+.audit-log-row-toggle {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 10px 14px;
+  margin: 0;
+  font-family: var(--font-main);
+  color: var(--text-primary);
 }
 
 .chat-messages-container {
@@ -2543,6 +2675,125 @@ body {
 .disclaimer-box i {
   margin-top: 2px;
   font-size: 0.8rem;
+}
+
+/* Floating AI Finance Buddy widget (available on every page, draggable) */
+.fab-chat-anchor {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 901;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.fab-chat-anchor.dragging {
+  cursor: grabbing;
+}
+
+.fab-chat-label {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-glass);
+  color: var(--text-primary);
+  font-family: var(--font-main);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  white-space: nowrap;
+  transition: opacity 0.15s ease;
+}
+
+.fab-chat-anchor.dragging .fab-chat-label,
+.fab-chat-anchor.panel-open .fab-chat-label {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.fab-chat-toggle {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--color-equity);
+  border: none;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.35);
+  transition: transform 0.2s ease;
+}
+
+.fab-chat-anchor:not(.dragging) .fab-chat-toggle:hover {
+  transform: scale(1.06);
+}
+
+.fab-chat-toggle .fab-chat-icon-close {
+  display: none;
+}
+
+.fab-chat-toggle.active .fab-chat-icon-open {
+  display: none;
+}
+
+.fab-chat-toggle.active .fab-chat-icon-close {
+  display: block;
+}
+
+.fab-chat-panel {
+  position: fixed;
+  bottom: 96px;
+  right: 24px;
+  width: min(380px, calc(100vw - 32px));
+  height: min(560px, calc(100vh - 140px));
+  background: var(--bg-primary);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--border-radius-lg);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(16px) scale(0.98);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.fab-chat-panel.active {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.fab-chat-close-btn {
+  cursor: pointer;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  transition: background 0.2s;
+}
+
+.fab-chat-close-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+@media (max-width: 480px) {
+  .fab-chat-anchor {
+    right: 16px;
+    bottom: 16px;
+  }
 }
 
 /* Portfolio Health Panel (Right Sidebar in Chat) */
@@ -3023,6 +3274,69 @@ input:checked+.slider:before {
   display: none;
 }
 
+.profile-page-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  overflow-y: auto;
+  padding: 104px 24px 60px;
+  background-color: var(--bg-primary);
+  background-image:
+    radial-gradient(at 0% 0%, rgba(37, 99, 235, 0.08) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(37, 99, 235, 0.05) 0px, transparent 50%);
+}
+
+.profile-page-overlay.active {
+  display: block;
+}
+
+.profile-page-inner {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.profile-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid var(--border-glass);
+  color: var(--text-primary);
+  font-family: var(--font-main);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: var(--border-radius-lg);
+  cursor: pointer;
+  margin-bottom: 20px;
+  transition: all 0.2s;
+}
+
+.profile-back-btn:hover {
+  background: rgba(37, 99, 235, 0.15);
+}
+
+.profile-signout-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  color: var(--color-danger, #dc2626);
+  font-family: var(--font-main);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: var(--border-radius-lg);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.profile-signout-btn:hover {
+  background: rgba(220, 38, 38, 0.15);
+}
+
 .learn-section.active {
   display: block;
 }
@@ -3030,7 +3344,13 @@ input:checked+.slider:before {
 /* Table styling in Portfolio */
 .portfolio-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
+}
+
+.portfolio-table th:first-child,
+.portfolio-table td:first-child {
+  width: 56%;
 }
 
 .portfolio-table th {
@@ -3057,11 +3377,13 @@ input:checked+.slider:before {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
 
 .portfolio-asset-logo {
   width: 32px;
   height: 32px;
+  flex-shrink: 0;
   border-radius: var(--border-radius-sm);
   display: flex;
   align-items: center;
@@ -4969,6 +5291,116 @@ input:checked+.slider:before {
   }
 }
 
+/* Small mobile: flatten the 3D phone tilt (its rotated bounding box otherwise
+   escapes the viewport and causes real horizontal scroll) and shrink it so it
+   doesn't dominate the whole first screen. */
+@media (max-width: 480px) {
+  .hero-container {
+    overflow-x: hidden;
+    padding: 32px 16px 24px 16px;
+  }
+
+  .phone-mockup-wrapper {
+    perspective: none;
+  }
+
+  .phone-mockup {
+    width: 190px;
+    height: 390px;
+    transform: none;
+    animation: none;
+  }
+
+  .phone-mockup:hover {
+    transform: none;
+  }
+
+  .hero-title {
+    font-size: 2rem;
+  }
+
+  .hero-subtitle {
+    font-size: 0.95rem;
+  }
+}
+
+/* Mobile hamburger menu — hidden on desktop by default */
+.mobile-menu-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid var(--border-glass);
+  background: rgba(37, 99, 235, 0.06);
+  color: var(--text-primary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.mobile-menu-toggle i {
+  width: 20px;
+  height: 20px;
+}
+
+.mobile-nav-panel {
+  display: none;
+  flex-direction: column;
+  position: sticky;
+  top: 80px;
+  z-index: 999;
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border-glass);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+  padding: 8px 16px 16px;
+}
+
+.mobile-nav-panel.active {
+  display: flex;
+}
+
+.mobile-nav-item {
+  padding: 12px 8px;
+  border-radius: 10px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-glass);
+}
+
+.mobile-nav-item:last-child {
+  border-bottom: none;
+}
+
+.mobile-nav-item.active {
+  color: var(--color-equity);
+}
+
+@media (max-width: 900px) {
+  .nav-links {
+    display: none;
+  }
+
+  .search-container {
+    display: none;
+  }
+
+  .mobile-menu-toggle {
+    display: flex;
+  }
+
+  .user-info-pill {
+    display: none;
+  }
+
+  .user-pill {
+    padding: 6px;
+  }
+}
+
 @media (max-width: 768px) {
   .navbar {
     height: auto;
@@ -4976,17 +5408,8 @@ input:checked+.slider:before {
   }
 
   .nav-container {
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .nav-links {
     flex-wrap: wrap;
-    justify-content: center;
-  }
-
-  .search-container {
-    width: 100%;
+    gap: 12px;
   }
 
   .hero-title {

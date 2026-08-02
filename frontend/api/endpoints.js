@@ -21,6 +21,7 @@ export const ENDPOINTS = {
   portfolioHoldings: `${API_PREFIX}/portfolio/holdings`,
   portfolioHoldingsExport: `${API_PREFIX}/portfolio/holdings/export`,
   portfolioPerformance: `${API_PREFIX}/portfolio/performance`,
+  portfolioAnalyze: `${API_PREFIX}/portfolio/analyze`,
 
   // ─── Transactions ─────────────────────────────────────────────────────────
   transactions: `${API_PREFIX}/transactions`,
@@ -55,6 +56,9 @@ export const ENDPOINTS = {
   marketQuote: (symbol) => `/api/market/quote/${symbol}`,
   marketChart: (symbol) => `/api/market/chart/${symbol}`,
   marketIndices: '/api/market/indices',
+  mutualFundCatalog: '/api/market/mutual-funds/catalog',
+  equityCatalog: '/api/market/equities/catalog',
+  goldCatalog: '/api/market/gold/catalog',
 
   // ─── SIPs ───────────────────────────────────────────────────────────────────
   sips: `${API_PREFIX}/sips`,
