@@ -14,6 +14,12 @@ app.get('/', (req, res) => {
   res.send('API is running');
 });
 
+const healthHandler = (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+};
+app.get('/api/health', healthHandler);
+app.get('/api/v1/health', healthHandler);
+
 app.use('/api/users', userRoutes);
 app.use('/api/market', marketRoutes);
 app.use('/api/v1/chat', chatRoutes);

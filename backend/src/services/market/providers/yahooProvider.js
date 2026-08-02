@@ -1,6 +1,6 @@
 const YahooFinance = require('yahoo-finance2').default;
 
-const yahooFinance = new YahooFinance();
+const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 
 const INDEX_SYMBOLS = {
   NIFTY_50: '^NSEI',
