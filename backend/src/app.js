@@ -4,6 +4,8 @@ const userRoutes = require('./routes/userRoutes');
 const marketRoutes = require('./routes/marketRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const auditLogRoutes = require('./routes/auditLogRoutes');
+const portfolioAnalysisRoutes = require('./routes/portfolioAnalysisRoutes');
+const portfolioRoutes = require('./routes/portfolioRoutes');
 
 const app = module.exports = express();
 
@@ -24,3 +26,5 @@ app.use('/api/users', userRoutes);
 app.use('/api/market', marketRoutes);
 app.use('/api/v1/chat', chatRoutes);
 app.use('/api/v1/audit-log', auditLogRoutes);
+app.use('/api/v1/portfolio', portfolioRoutes);
+app.use('/api/v1/portfolio/analyze', portfolioAnalysisRoutes);

@@ -41,11 +41,6 @@
               <span>Home</span>
             </a>
           </li>
-          <li class="nav-item" data-page="profile">
-            <a href="#profile">
-              <span>Profile</span>
-            </a>
-          </li>
           <li class="nav-item" data-page="dashboard">
             <a href="#dashboard">
               <span>Dashboard</span>
@@ -73,7 +68,7 @@
           </li>
           <li class="nav-item" data-page="buddy">
             <a href="#buddy">
-              <span>Finance Buddy</span>
+              <span>Portfolio Analyzer</span>
             </a>
           </li>
         </nav>
@@ -98,9 +93,24 @@
             </div>
             <i data-lucide="chevron-down" style="width: 14px; height: 14px; color: var(--text-secondary);"></i>
           </div>
+
+          <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Open menu">
+            <i data-lucide="menu"></i>
+          </button>
         </div>
       </div>
     </header>
+
+    <!-- Mobile nav dropdown — mirrors the desktop nav-links list -->
+    <div class="mobile-nav-panel" id="mobile-nav-panel">
+      <a href="#hero" class="mobile-nav-item" data-page="hero">Home</a>
+      <a href="#dashboard" class="mobile-nav-item" data-page="dashboard">Dashboard</a>
+      <a href="#portfolio" class="mobile-nav-item" data-page="portfolio">Portfolio</a>
+      <a href="#invest" class="mobile-nav-item" data-page="invest">Invest</a>
+      <a href="#goals" class="mobile-nav-item" data-page="goals">Goals</a>
+      <a href="#learn" class="mobile-nav-item" data-page="learn">Learn</a>
+      <a href="#buddy" class="mobile-nav-item" data-page="buddy">Portfolio Analyzer</a>
+    </div>
 
     <!-- Main Shell Wrapper -->
     <div class="main-wrapper">
@@ -325,8 +335,18 @@
           </div>
         </section>
 
-        <!-- 1b. Profile Page (positioned after Home for scroll order) -->
-        <section id="profile-page" class="page">
+        <!-- 1b. Profile Page: isolated full-screen overlay, opened only via the account chip -->
+        <section id="profile-page" class="profile-page-overlay">
+        <div class="profile-page-inner">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+            <button class="profile-back-btn" id="profile-back-btn" style="margin-bottom:0;">
+              <i data-lucide="arrow-left" style="width:16px; height:16px;"></i> Back
+            </button>
+            <button class="profile-signout-btn" id="profile-signout-btn">
+              <i data-lucide="log-out" style="width:16px; height:16px;"></i> Sign Out
+            </button>
+          </div>
+
           <div class="profile-grid">
 
             <!-- Left col: User Card & Risk profile -->
@@ -363,7 +383,7 @@
 
             </div>
 
-            <!-- Right col: Aggregated Accounts & Toggle Settings -->
+            <!-- Right col: Linked Accounts & Alert/Drift Rules -->
             <div style="display:flex; flex-direction:column; gap:24px;">
 
               <!-- Linked accounts card -->
@@ -395,6 +415,8 @@
             </div>
 
           </div>
+
+        </div>
         </section>
 
 
@@ -668,8 +690,8 @@
 
           <div class="bento-grid">
 
-            <!-- Performance Chart – wide hero (8/12 cols × 2 rows) -->
-            <div class="glass-card b-c4 b-r2">
+            <!-- Performance Chart – hero (6/12 cols × 2 rows) -->
+            <div class="glass-card b-c3 b-r2">
               <div class="card-header-row">
                 <h4 class="card-title">Portfolio Performance</h4>
                 <div class="timeframe-selector">
@@ -683,10 +705,41 @@
               <div class="portfolio-chart-wrapper">
                 <canvas id="portfolioMainChart"></canvas>
               </div>
+
+              <div class="chart-stats-row" id="chart-stats-row">
+                <div class="chart-stat-tile">
+                  <div class="chart-stat-icon neutral"><i data-lucide="wallet"></i></div>
+                  <div class="chart-stat-text">
+                    <span class="chart-stat-label">Current Value</span>
+                    <span class="chart-stat-val" id="chart-stat-current-value">—</span>
+                  </div>
+                </div>
+                <div class="chart-stat-tile">
+                  <div class="chart-stat-icon neutral"><i data-lucide="piggy-bank"></i></div>
+                  <div class="chart-stat-text">
+                    <span class="chart-stat-label">Total Invested</span>
+                    <span class="chart-stat-val" id="chart-stat-invested">—</span>
+                  </div>
+                </div>
+                <div class="chart-stat-tile">
+                  <div class="chart-stat-icon" id="chart-stat-overall-gain-icon"><i data-lucide="trending-up"></i></div>
+                  <div class="chart-stat-text">
+                    <span class="chart-stat-label">Overall Gain</span>
+                    <span class="chart-stat-val" id="chart-stat-overall-gain">—</span>
+                  </div>
+                </div>
+                <div class="chart-stat-tile">
+                  <div class="chart-stat-icon" id="chart-stat-period-icon"><i data-lucide="activity"></i></div>
+                  <div class="chart-stat-text">
+                    <span class="chart-stat-label" id="chart-stat-period-label">3M Change</span>
+                    <span class="chart-stat-val" id="chart-stat-period-change">—</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <!-- Holdings Breakdown – sidebar (4/12 cols × 2 rows) -->
-            <div class="glass-card b-c2 b-r2" style="display:flex; flex-direction:column;">
+            <!-- Holdings Breakdown – sidebar (6/12 cols × 2 rows) -->
+            <div class="glass-card b-c3 b-r2" style="display:flex; flex-direction:column; align-self:start;">
               <div class="card-header-row">
                 <h4 class="card-title">Holdings</h4>
                 <div style="display:flex; gap:8px;">
@@ -703,7 +756,7 @@
                   <i data-lucide="download" style="width:14px;height:14px;"></i> Export CSV
                 </button>
               </div>
-              <div style="flex:1; overflow-y:auto;">
+              <div style="max-height:560px; overflow-y:auto;">
                 <table class="portfolio-table">
                   <thead>
                     <tr>
@@ -725,13 +778,13 @@
         <!-- 5. Invest Page -->
         <section id="invest-page" class="page">
           <div class="filter-tabs-container" id="invest-category-tabs">
-            <button class="filter-tab active" data-category="mf">Mutual Funds</button>
-            <button class="filter-tab" data-category="equity">Equities (Direct Stock)</button>
+            <button class="filter-tab active" data-category="equity">Equities (Direct Stock)</button>
+            <button class="filter-tab" data-category="mf">Mutual Funds</button>
             <button class="filter-tab" data-category="gold">Digital Gold</button>
             <button class="filter-tab" data-category="fd">Fixed Deposits</button>
           </div>
 
-          <div class="chips-container" id="invest-sub-filters">
+          <div class="chips-container" id="invest-sub-filters" style="display:none;">
             <button class="chip-btn active" data-sub="all">All</button>
             <button class="chip-btn" data-sub="equity">Equity funds</button>
             <button class="chip-btn" data-sub="debt">Debt funds</button>
@@ -744,7 +797,7 @@
             style="display:flex; max-width:420px; margin-bottom:20px;">
             <i data-lucide="search"></i>
             <input type="text" class="search-input" id="invest-stock-search-input"
-              placeholder="Search mutual funds by name…">
+              placeholder="Search live stocks e.g. RELIANCE, TCS, INFY…">
           </div>
 
           <!-- Fund Cards bento grid -->
@@ -831,63 +884,44 @@
           </div>
         </section>
 
-        <!-- 8. Finance Buddy Page -->
+        <!-- 8. Portfolio Analyzer Page -->
         <section id="buddy-page" class="page">
+          <div class="welcome-row">
+            <div class="welcome-info">
+              <h3>Portfolio Analyzer</h3>
+              <div class="welcome-sub">
+                <span>AI-powered diversification and risk analysis for your holdings. Looking for the chatbot? Use the
+                  floating Finance Buddy button in the corner.</span>
+              </div>
+            </div>
+          </div>
+
           <div class="chat-layout">
 
-            <!-- Left panel: Chat Interface (Wider) -->
-            <div class="glass-card chat-panel">
-              <div class="chat-header">
-                <div class="chat-header-left">
-                  <div class="chat-buddy-title">
-                    <span>AI Finance Buddy</span>
-                    <span class="badge badge-info">AI Beta</span>
-                  </div>
-                  <span class="chat-buddy-subtitle">Powered by AI · Educational purposes only, not formal investment
-                    advice</span>
-                </div>
-                <div class="status-badge">
-                  <div class="status-dot"></div>
-                  <span>Online</span>
-                </div>
+            <!-- Left panel: Portfolio Analyzer (Wider) -->
+            <div class="glass-card" style="border-color: rgba(59, 130, 246, 0.2);">
+              <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+                <i data-lucide="scan-search" style="color:var(--color-equity);"></i>
+                <strong style="font-size:1rem;">Portfolio Analyzer</strong>
               </div>
 
-              <!-- Chat window messages -->
-              <div class="chat-messages-container" id="chat-messages">
-                <!-- Initial welcome message from AI Buddy -->
-                <div class="message-wrapper ai">
-                  <div class="message-avatar">AI</div>
-                  <div class="message-bubble">
-                    <p>Namaste! I am your AssetBridge Finance Buddy. I can analyse your current portfolio and give you
-                      financial literacy tips, rebalancing guides, or tax estimates.</p>
-                    <p>How can I help you today?</p>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Suggested Question Chips -->
-              <div class="suggested-chips" id="suggested-questions-row">
-                <button class="suggested-chip">What is my portfolio risk?</button>
-                <button class="suggested-chip">How much SIP for ₹1 Cr in 20 years?</button>
-                <button class="suggested-chip">Explain ELSS tax saving</button>
-                <button class="suggested-chip">Should I rebalance now?</button>
-              </div>
-
-              <!-- Input bar -->
-              <div class="chat-input-area">
-                <input type="text" class="chat-input" id="chat-input-field"
-                  placeholder="Ask about asset allocation, SIP math, rebalancing...">
-                <button class="btn btn-primary" id="chat-send-btn" style="padding: 12px 20px;">
-                  <i data-lucide="send"></i>
+              <div id="portfolio-analyzer-idle">
+                <p style="font-size:0.85rem; color:var(--text-secondary); line-height:1.5; margin-bottom:18px;">
+                  Run an AI-powered diversification and risk analysis on your current holdings, with personalised
+                  recommendations.
+                </p>
+                <button class="btn btn-primary" id="portfolio-analyzer-run-btn"
+                  style="width:100%; justify-content:center;">
+                  Analyze My Portfolio
                 </button>
               </div>
 
-              <!-- Disclaimer footer -->
-              <div class="disclaimer-box">
-                <i data-lucide="alert-circle" style="width:14px; height:14px; flex-shrink:0;"></i>
-                <span>Finance Buddy provides general financial information for educational purposes only. This is not
-                  formal investment advice. Please consult a SEBI Registered Investment Advisor (RIA) before making
-                  investment decisions.</span>
+              <div id="portfolio-analyzer-loading" style="display:none; text-align:center; padding:24px 0;">
+                <p style="font-size:0.85rem; color:var(--text-secondary);">Analyzing your portfolio…</p>
+              </div>
+
+              <div id="portfolio-analyzer-result" style="display:none;">
+                <!-- Populated via JS -->
               </div>
             </div>
 
@@ -932,21 +966,6 @@
                     </div>
                   </div>
                 </div>
-              </div>
-
-              <!-- Advisor connect nudge -->
-              <div class="glass-card" style="border-color: rgba(59, 130, 246, 0.2);">
-                <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
-                  <i data-lucide="users" style="color:var(--color-equity);"></i>
-                  <strong style="font-size:0.95rem;">Talk to a human advisor</strong>
-                </div>
-                <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4; margin-bottom:16px;">
-                  Book a free 30-minute discovery call with a certified SEBI Registered Investment Advisor (RIA) to
-                  optimize your allocation plan.
-                </p>
-                <button class="btn btn-primary" id="buddy-book-call-btn" style="width:100%; justify-content:center;">
-                  Book Free RIA Session
-                </button>
               </div>
 
             </div>
@@ -996,6 +1015,20 @@
   </div>
 
   <!-- MODALS OVERLAYS -->
+
+  <!-- Explainer Article Modal -->
+  <div class="modal-overlay" id="modal-explainer-article">
+    <div class="modal-content" style="max-width: 640px; text-align:left;">
+      <div class="modal-close-btn" id="close-modal-explainer-article"><i data-lucide="x"></i></div>
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+        <span class="badge badge-info" id="explainer-article-cat"></span>
+        <span class="badge badge-info" id="explainer-article-difficulty"></span>
+      </div>
+      <h3 class="modal-title" id="explainer-article-title" style="margin-bottom:4px;"></h3>
+      <div style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:16px;" id="explainer-article-readtime"></div>
+      <div id="explainer-article-body" style="font-size:0.9rem; line-height:1.6; max-height:60vh; overflow-y:auto;"></div>
+    </div>
+  </div>
 
   <!-- Add Funds Modal -->
   <div class="modal-overlay" id="modal-add-funds">
@@ -1211,6 +1244,50 @@
         </button>
       </div>
     </div>
+  </div>
+
+  <!-- Floating AI Finance Buddy widget — available on every page -->
+  <div class="fab-chat-panel" id="fab-chat-panel">
+    <div class="chat-header">
+      <div class="chat-header-left">
+        <div class="chat-buddy-title">
+          <span>AI Finance Buddy</span>
+          <span class="badge badge-info">AI Beta</span>
+        </div>
+        <span class="chat-buddy-subtitle">Powered by AI · Educational purposes only</span>
+      </div>
+      <div class="fab-chat-close-btn" id="fab-chat-close-btn"><i data-lucide="x"></i></div>
+    </div>
+
+    <div class="chat-messages-container" id="fab-chat-messages">
+      <div class="message-wrapper ai">
+        <div class="message-avatar">AI</div>
+        <div class="message-bubble">
+          <p>Namaste! Ask me anything about your portfolio, SIPs, tax saving, or rebalancing.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="suggested-chips" id="fab-suggested-questions-row">
+      <button class="suggested-chip">What is my portfolio risk?</button>
+      <button class="suggested-chip">Explain ELSS tax saving</button>
+      <button class="suggested-chip">Should I rebalance now?</button>
+    </div>
+
+    <div class="chat-input-area">
+      <input type="text" class="chat-input" id="fab-chat-input-field" placeholder="Ask Finance Buddy…">
+      <button class="btn btn-primary" id="fab-chat-send-btn" style="padding: 12px 20px;">
+        <i data-lucide="send"></i>
+      </button>
+    </div>
+  </div>
+
+  <div class="fab-chat-anchor" id="fab-chat-anchor">
+    <div class="fab-chat-label" id="fab-chat-label">Tap to chat 👋</div>
+    <button class="fab-chat-toggle" id="fab-chat-toggle" title="Chat with Finance Buddy">
+      <i data-lucide="message-circle" class="fab-chat-icon-open"></i>
+      <i data-lucide="x" class="fab-chat-icon-close"></i>
+    </button>
   </div>
 
   <!-- Update your script tag at the bottom of index.html -->

@@ -1,5 +1,6 @@
 # main.py (at project root, outside src/)
 from fastapi import FastAPI, HTTPException
+from fastapi.encoders import jsonable_encoder
 
 from src.portfolio.models import PortfolioRequest
 from src.portfolio.analyzer import analyze_portfolio
@@ -57,7 +58,7 @@ def analyze(request: PortfolioRequest):
         user_id=request.user_id,
         session_id=request.session_id,
         request_data=request.model_dump(),
-        response_data=response_data,
+        response_data=jsonable_encoder(response_data),
     )
 
     return response_data

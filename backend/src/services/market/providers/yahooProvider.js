@@ -102,4 +102,110 @@ const getIndices = async () => {
   }));
 };
 
-module.exports = { search, getQuote, getChart, getIndices };
+// Curated flagship Indian mutual fund search terms — Yahoo's Indian MF search
+// coverage is inconsistent (many well-known schemes don't resolve at all, and
+// longer/more specific queries tend to return zero results), so this list was
+// hand-verified to actually return a recognizable, real fund for each entry.
+const MUTUAL_FUND_CATALOG_QUERIES = [
+  'HDFC Nifty 50',
+  'UTI Nifty 50',
+  'Mirae Asset Large Cap',
+  'Axis Midcap',
+  'Nippon India Small Cap',
+  'HSBC Small Cap',
+  'DSP Small Cap',
+  'ICICI Prudential Bluechip',
+];
+
+const getMutualFundCatalog = async () => {
+  const searchResults = await Promise.allSettled(
+    MUTUAL_FUND_CATALOG_QUERIES.map(async (query) => {
+      const result = await yahooFinance.search(query);
+      const match = result.quotes.find((q) => q.quoteType === 'MUTUALFUND' && q.exchange === 'BSE');
+      if (!match) return null;
+      return match.symbol;
+    })
+  );
+
+  const symbols = searchResults
+    .filter((r) => r.status === 'fulfilled' && r.value)
+    .map((r) => r.value);
+
+  const quoteResults = await Promise.allSettled(symbols.map((symbol) => yahooFinance.quote(symbol)));
+
+  return quoteResults
+    .filter((r) => r.status === 'fulfilled' && r.value)
+    .map((r) => {
+      const quote = r.value;
+      return {
+        symbol: quote.symbol,
+        name: quote.longName || quote.symbol,
+        exchange: quote.fullExchangeName || 'BSE',
+        price: quote.regularMarketPrice,
+        currency: quote.currency,
+        ytdReturn: quote.ytdReturn,
+        threeMonthReturn: quote.trailingThreeMonthReturns,
+        logoUrl: getLogoUrl(quote.symbol),
+      };
+    });
+};
+
+// Fetches quotes for a fixed symbol list in parallel, silently dropping any
+// symbol that fails to resolve (delisted, renamed, wrong suffix, etc.).
+const getQuoteCatalog = async (symbols, typeLabel) => {
+  const quoteResults = await Promise.allSettled(symbols.map((symbol) => yahooFinance.quote(symbol)));
+
+  return quoteResults
+    .filter((r) => r.status === 'fulfilled' && r.value)
+    .map((r) => {
+      const quote = r.value;
+      return {
+        symbol: quote.symbol,
+        name: quote.longName || quote.shortName || quote.symbol,
+        exchange: quote.fullExchangeName || 'NSE',
+        price: quote.regularMarketPrice,
+        changePercent: quote.regularMarketChangePercent,
+        currency: quote.currency,
+        type: typeLabel,
+        logoUrl: getLogoUrl(quote.symbol),
+      };
+    });
+};
+
+// Curated large-cap NSE stocks for the Invest > Equities default browse view.
+const EQUITY_CATALOG_SYMBOLS = [
+  'RELIANCE.NS',
+  'TCS.NS',
+  'INFY.NS',
+  'HDFCBANK.NS',
+  'ICICIBANK.NS',
+  'BHARTIARTL.NS',
+  'ITC.NS',
+  'LT.NS',
+  'SBIN.NS',
+];
+
+const getEquityCatalog = () => getQuoteCatalog(EQUITY_CATALOG_SYMBOLS, 'EQUITY');
+
+// Curated Gold ETFs (real, exchange-traded proxies for digital gold pricing —
+// there is no single "digital gold" ticker; ETFs are the closest tradeable
+// real-market instrument backed by physical gold).
+const GOLD_CATALOG_SYMBOLS = [
+  'GOLDBEES.NS',
+  'GOLD1.NS',
+  'GOLDIETF.NS',
+  'HDFCGOLD.NS',
+  'SETFGOLD.NS',
+];
+
+const getGoldCatalog = () => getQuoteCatalog(GOLD_CATALOG_SYMBOLS, 'GOLD ETF');
+
+module.exports = {
+  search,
+  getQuote,
+  getChart,
+  getIndices,
+  getMutualFundCatalog,
+  getEquityCatalog,
+  getGoldCatalog,
+};
