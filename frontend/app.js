@@ -61,7 +61,6 @@ onAuthStateChanged(auth, async (user) => {
 
     renderAll();
     renderAuditLog();
-    initPortfolioChart();
   } else {
     setAuthTokenProvider(null);
     // User is signed out -> Open login modal automatically
@@ -686,37 +685,6 @@ function renderDashboard() {
     nudgeCard.style.display = isNudgeClosed ? 'none' : 'flex';
   }
   
-  // Update greeting dynamically based on the current time of day
-  const now = new Date();
-  const hours = now.getHours();
-  let greetingWord = "Good morning";
-  if (hours >= 12 && hours < 17) {
-    greetingWord = "Good afternoon";
-  } else if (hours >= 17) {
-    greetingWord = "Good evening";
-  }
-  
-  const greetingEl = document.getElementById('dashboard-greeting');
-  if (greetingEl) {
-    greetingEl.textContent = `${greetingWord}, ${state.user.firstName || 'User'}`;
-  }
-  
-  const dateEl = document.getElementById('dashboard-date');
-  if (dateEl) {
-    const dateOptions = { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' };
-    dateEl.textContent = now.toLocaleDateString('en-US', dateOptions);
-  }
-
-  const phoneGreetingHi = document.querySelector('.phone-greeting-hi');
-  if (phoneGreetingHi) {
-    phoneGreetingHi.textContent = `Hello, ${state.user.firstName || 'User'} 👋`;
-  }
-
-  const phoneAvatar = document.querySelector('.phone-avatar-circle');
-  if (phoneAvatar && state.user.fullName) {
-    phoneAvatar.textContent = state.user.fullName.split(' ').map(n => n[0]).join('').toUpperCase();
-  }
-  
   renderCard1AssetFlow();
   renderCard2Metrics(metrics);
   renderCard3Transactions();
@@ -1286,72 +1254,29 @@ function renderEquityResults(stocks) {
       e.stopPropagation(); // don't also trigger the card's chart-open click
       const symbol = btn.getAttribute('data-symbol');
       const stock = stocks.find((s) => s.symbol === symbol);
-      if (stock) openBrokerChoiceModal(stock);
+      if (stock) openInvestCheckoutModal(stockToFundShape(stock));
     });
   });
 }
 
-// Strips the Yahoo-style exchange suffix (.NS/.BO) so we're left with the
-// plain ticker brokers use in their own search/URLs (e.g. RELIANCE.NS -> RELIANCE).
-function bareSymbol(symbol) {
-  return (symbol || '').split('.')[0];
-}
-
-// Groww's stock pages live at groww.in/stocks/<company-slug>, e.g.
-// "ICICI Bank Limited" -> "icici-bank-ltd". Derived from the company name
-// since Groww's slug isn't the ticker symbol.
-function growwSlug(name) {
-  return (name || '')
-    .toLowerCase()
-    .replace(/\blimited\b/g, 'ltd')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
-
-// "Invest Now" on a live stock/gold-ETF/mutual-fund card -> let the user pick
-// which broker to place the actual order with, then deep-link to that
-// instrument on the broker's site. `assetType` is 'equity' (stocks & gold
-// ETFs, both traded on NSE) or 'mf' (mutual fund schemes).
-function openBrokerChoiceModal(item, assetType = 'equity') {
-  const symbol = bareSymbol(item.symbol);
-  document.getElementById('broker-choice-stock-name').textContent = item.name;
-  document.getElementById('broker-choice-stock-symbol').textContent = symbol;
-
-  const zerodhaBtn = document.getElementById('broker-choice-zerodha');
-  const growwBtn = document.getElementById('broker-choice-groww');
-  const zerodhaSubtitle = zerodhaBtn.querySelector('small');
-  const close = () => document.getElementById('modal-broker-choice').classList.remove('active');
-
-  if (assetType === 'mf') {
-    // Coin's fund URLs are keyed by ISIN (coin.zerodha.com/mf/fund/<ISIN>/<slug>),
-    // which our catalog data doesn't include, so there's no way to deep-link a
-    // specific scheme — send the user to Coin's mutual fund search instead.
-    zerodhaSubtitle.textContent = 'Search on Coin';
-    zerodhaBtn.onclick = () => {
-      window.open('https://coin.zerodha.com/mf', '_blank', 'noopener');
-      close();
-    };
-    // Groww's mutual fund pages are keyed by scheme name slug, same as their stock pages.
-    growwBtn.onclick = () => {
-      window.open(`https://groww.in/mutual-funds/${encodeURIComponent(growwSlug(item.name))}`, '_blank', 'noopener');
-      close();
-    };
-  } else {
-    zerodhaSubtitle.textContent = 'Open via Kite';
-    zerodhaBtn.onclick = () => {
-      const exchange = (item.exchange || 'NSE').toUpperCase();
-      const segment = item.type === 'GOLD ETF' ? 'etf' : 'stocks';
-      window.open(`https://zerodha.com/markets/${segment}/${encodeURIComponent(exchange)}/${encodeURIComponent(symbol)}/`, '_blank', 'noopener');
-      close();
-    };
-    growwBtn.onclick = () => {
-      const segment = item.type === 'GOLD ETF' ? 'etfs' : 'stocks';
-      window.open(`https://groww.in/${segment}/${encodeURIComponent(growwSlug(item.name))}`, '_blank', 'noopener');
-      close();
-    };
-  }
-
-  document.getElementById('modal-broker-choice').classList.add('active');
+// Adapts a live stock quote into the shape openInvestCheckoutModal/holdings expect,
+// so real stocks flow through the same simulated buy/portfolio logic as mock funds.
+function stockToFundShape(stock) {
+  const isUp = stock.changePercent >= 0;
+  return {
+    id: `stock_${stock.symbol}`,
+    symbol: stock.symbol,
+    name: stock.name,
+    category: 'equity',
+    subCategory: 'equity',
+    risk: 'Market Risk (Direct Equity)',
+    ret1y: `${isUp ? '+' : ''}${stock.changePercent != null ? stock.changePercent.toFixed(2) : '0.00'}% today`,
+    ret3y: stock.price != null ? formatRupee(stock.price) : '—',
+    aum: stock.exchange || 'LIVE',
+    bg: '#4f46e5',
+    initials: stock.symbol.slice(0, 2),
+    price: stock.price,
+  };
 }
 
 // Factory for "curated live catalog" tabs: fetch once from a real backend
@@ -1506,9 +1431,29 @@ function renderMutualFundResults(funds) {
       e.stopPropagation();
       const symbol = btn.getAttribute('data-symbol');
       const fund = funds.find((f) => f.symbol === symbol);
-      if (fund) openBrokerChoiceModal(fund, 'mf');
+      if (fund) openInvestCheckoutModal(mutualFundToFundShape(fund));
     });
   });
+}
+
+// Adapts a live mutual fund quote into the shape openInvestCheckoutModal/holdings
+// expect, so real funds flow through the same simulated buy/portfolio logic.
+function mutualFundToFundShape(fund) {
+  const isUp = fund.ytdReturn >= 0;
+  return {
+    id: `mf_${fund.symbol}`,
+    symbol: fund.symbol,
+    name: fund.name,
+    category: 'mf',
+    subCategory: 'equity',
+    risk: 'Market-Linked Risk (Mutual Fund)',
+    ret1y: `${isUp ? '+' : ''}${fund.ytdReturn != null ? fund.ytdReturn.toFixed(2) : '0.00'}% YTD`,
+    ret3y: fund.price != null ? formatRupee(fund.price) : '—',
+    aum: fund.exchange || 'LIVE',
+    bg: '#059669',
+    initials: fund.symbol.slice(0, 2),
+    price: fund.price,
+  };
 }
 
 // Stock Price Chart Modal
@@ -2983,20 +2928,8 @@ function setupModals() {
   const openModal = (id) => document.getElementById(id).classList.add('active');
   const closeModal = (id) => document.getElementById(id).classList.remove('active');
 
-  // Hero "Learn More" / arrow CTAs -> scroll to the "How It Works" section
-  const scrollToHowItWorks = () => {
-    document.getElementById('how-it-works-page')?.scrollIntoView({ behavior: 'smooth' });
-  };
-  const heroLearnBtn = document.getElementById('action-hero-learn');
-  const heroArrowBtn = document.getElementById('action-hero-arrow');
-  if (heroLearnBtn) heroLearnBtn.addEventListener('click', scrollToHowItWorks);
-  if (heroArrowBtn) heroArrowBtn.addEventListener('click', scrollToHowItWorks);
-
   // Explainer Article
   document.getElementById('close-modal-explainer-article').addEventListener('click', () => closeModal('modal-explainer-article'));
-
-  // Broker Choice (Invest Now on a live stock)
-  document.getElementById('close-modal-broker-choice').addEventListener('click', () => closeModal('modal-broker-choice'));
 
   // A. Add Funds
   document.getElementById('action-add-funds').addEventListener('click', () => openModal('modal-add-funds'));
@@ -3147,31 +3080,105 @@ function setupModals() {
     renderAll();
   });
   
-  // Link More Consent Account
-  const linkConsentBtn = document.getElementById('profile-link-consent-btn');
-  if (linkConsentBtn) {
-    linkConsentBtn.addEventListener('click', () => {
-      const consentName = prompt("Enter bank or broking account provider to link via Account Aggregator:", "ICICI Direct");
-      if (consentName && consentName.trim().length > 0) {
-        state.consents.push({
-          id: `c_${Date.now()}`,
-          accountName: consentName,
-          sourceType: "Account Aggregator Consent",
-          status: "Linked",
-          logo: consentName.substring(0, 2).toUpperCase()
-        });
-        
-        state.notifications.unshift({
-          id: `n_consent_${Date.now()}`,
-          type: "success",
-          title: "Account Consent Authorized",
-          description: `Linked ${consentName} data feed to your unified investing dashboard.`,
-          time: "Just Now",
-          unread: true
-        });
-        renderAll();
+  // Link Account Modal Controller
+  let selectedAccountType = null;
+  const linkModal = document.getElementById("link-account-modal");
+  const openModalBtn = document.getElementById("profile-link-consent-btn");
+  const closeModalBtn = document.getElementById("close-link-modal");
+  const continueBtn = document.getElementById("continue-link-account");
+
+  function openLinkAccountModal() {
+    if (linkModal) {
+      linkModal.classList.add("active");
+    }
+  }
+
+  function closeLinkAccountModal() {
+    if (linkModal) {
+      linkModal.classList.remove("active");
+    }
+  }
+
+  if (openModalBtn) {
+    openModalBtn.addEventListener("click", openLinkAccountModal);
+  }
+
+  document.querySelectorAll('[data-action="link-account"], #linkBankBtn').forEach(btn => {
+    btn.addEventListener("click", openLinkAccountModal);
+  });
+
+  if (closeModalBtn) {
+    closeModalBtn.addEventListener("click", closeLinkAccountModal);
+  }
+
+  if (linkModal) {
+    linkModal.addEventListener("click", (e) => {
+      if (e.target === linkModal) {
+        closeLinkAccountModal();
       }
     });
+  }
+
+  document.querySelectorAll(".account-option").forEach(card => {
+    card.addEventListener("click", () => {
+      document.querySelectorAll(".account-option").forEach(c => {
+        c.classList.remove("selected");
+      });
+      card.classList.add("selected");
+      selectedAccountType = card.dataset.type;
+    });
+  });
+
+  if (continueBtn) {
+    continueBtn.addEventListener("click", () => {
+      if (!selectedAccountType) {
+        alert("Please select an account type to proceed.");
+        return;
+      }
+
+      closeLinkAccountModal();
+
+      if (selectedAccountType === 'bank') {
+        if (typeof window.openFinvuWidget === 'function') {
+          window.openFinvuWidget();
+        } else {
+          const consentName = prompt("Enter Bank Name to connect via Account Aggregator:", "HDFC Bank");
+          if (consentName && consentName.trim().length > 0) {
+            addConsentAccount(consentName, "Bank Account Aggregator");
+          }
+        }
+      } else {
+        const typeLabels = {
+          zerodha: "Demat Account (Zerodha/Groww)",
+          mf: "Mutual Funds (MF Central/CAMS)",
+          gold: "Digital Gold (SafeGold/MMTC)"
+        };
+        const label = typeLabels[selectedAccountType] || "Financial Account";
+        const provider = prompt(`Enter ${label} Provider or ID:`, selectedAccountType.toUpperCase());
+        if (provider && provider.trim().length > 0) {
+          addConsentAccount(provider, label);
+        }
+      }
+    });
+  }
+
+  function addConsentAccount(name, type) {
+    state.consents.push({
+      id: `c_${Date.now()}`,
+      accountName: name,
+      sourceType: type,
+      status: "Linked",
+      logo: name.substring(0, 2).toUpperCase()
+    });
+    state.notifications.unshift({
+      id: `n_consent_${Date.now()}`,
+      type: "success",
+      title: "Account Consent Authorized",
+      description: `Linked ${name} (${type}) feed to your unified investing dashboard.`,
+      time: "Just Now",
+      unread: true
+    });
+    renderAll();
   }
 }
 
@@ -3764,13 +3771,6 @@ function setupAuditLog() {
   renderAuditLog();
 }
 
-// Shortens long Firebase UIDs / session IDs for the audit log row (full value
-// stays available via the element's title tooltip).
-function truncateId(id) {
-  if (!id || id === 'N/A' || id.length <= 12) return id;
-  return `${id.slice(0, 6)}…${id.slice(-4)}`;
-}
-
 async function renderAuditLog() {
   const list = document.getElementById('audit-log-list');
   if (!list) return;
@@ -3795,22 +3795,18 @@ async function renderAuditLog() {
         const overallRisk = risk?.overall_risk ?? 'N/A';
         const holdingsCount = entry.request?.holdings?.length ?? 0;
 
-        const sessionIdFull = entry.session_id ?? 'N/A';
-        const sessionIdShort = truncateId(sessionIdFull);
-        const userName = state.user?.fullName ?? entry.user_id ?? 'N/A';
-
         return `
           <div style="border:1px solid var(--border-color, rgba(0,0,0,0.08)); border-radius:10px; overflow:hidden; flex-shrink:0;">
             <button class="audit-log-row-toggle" data-audit-index="${i}">
               <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.78rem; color:var(--text-secondary); margin-bottom:4px;">
                 <span>${time}</span>
                 <div style="display:flex; align-items:center; gap:8px;">
-                  <span title="${sessionIdFull}">Session: ${sessionIdShort}</span>
+                  <span>Session: ${entry.session_id ?? 'N/A'}</span>
                   <i data-lucide="chevron-down" class="audit-log-chevron" style="width:14px; height:14px; transition: transform 0.2s;"></i>
                 </div>
               </div>
               <div style="font-size:0.85rem;">
-                <strong>User:</strong> ${userName} &nbsp;·&nbsp;
+                <strong>User:</strong> ${entry.user_id ?? 'N/A'} &nbsp;·&nbsp;
                 <strong>Holdings:</strong> ${holdingsCount} &nbsp;·&nbsp;
                 <strong>Risk:</strong> ${overallRisk} &nbsp;·&nbsp;
                 <strong>Health:</strong> ${healthLabel}
@@ -3919,11 +3915,6 @@ function formatAuditLogDetail(entry) {
       ${recommendationsHtml}
 
       <p style="margin-top:12px; color:var(--text-muted); font-size:0.7rem;">${rec?.disclaimer ?? ''}</p>
-
-      <p style="margin-top:8px; padding-top:8px; border-top:1px dashed var(--border-color, rgba(0,0,0,0.08)); color:var(--text-muted); font-size:0.68rem; word-break:break-all;">
-        Analyzer version: <strong>${entry.analyzer_version ?? 'N/A'}</strong> ·
-        Response hash (SHA-256): <code>${entry.response_hash ?? 'N/A'}</code>
-      </p>
     </div>
   `;
 }
@@ -4108,4 +4099,24 @@ function initSpotlightNavbar() {
   nav.addEventListener('mouseleave', () => {
     cursor.style.background = 'none';
   });
+
+/* When the user clicks on the button,
+toggle between hiding and showing the dropdown content */
+function myFunction() {
+  document.getElementById("myDropdown").classList.toggle("show");
+}
+
+// Close the dropdown menu if the user clicks outside of it
+window.onclick = function(event) {
+  if (!event.target.matches('.dropbtn')) {
+    var dropdowns = document.getElementsByClassName("dropdown-content");
+    var i;
+    for (i = 0; i < dropdowns.length; i++) {
+      var openDropdown = dropdowns[i];
+      if (openDropdown.classList.contains('show')) {
+        openDropdown.classList.remove('show');
+      }
+    }
+  }
+}
 }
