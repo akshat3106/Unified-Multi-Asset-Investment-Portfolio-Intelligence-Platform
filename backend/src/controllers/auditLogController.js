@@ -1,22 +1,25 @@
-const PORTFOLIO_ANALYZER_URL = process.env.PORTFOLIO_ANALYZER_URL || 'http://localhost:8002';
+const PortfolioAuditLog = require('../models/PortfolioAuditLog');
 
 async function getAuditLog(req, res) {
   const { userId } = req.query;
 
   try {
-    const url = new URL('/audit-log', PORTFOLIO_ANALYZER_URL);
-    if (userId) url.searchParams.set('user_id', userId);
+    const filter = userId ? { userId } : {};
+    const docs = await PortfolioAuditLog.find(filter).sort({ timestamp: 1 }).lean();
 
-    const response = await fetch(url);
+    const entries = docs.map((doc) => ({
+      timestamp: doc.timestamp,
+      user_id: doc.userId,
+      session_id: doc.sessionId,
+      analyzer_version: doc.analyzerVersion,
+      response_hash: doc.responseHash,
+      request: doc.request,
+      response: doc.response,
+    }));
 
-    if (!response.ok) {
-      return res.status(502).json({ message: 'Portfolio Analyzer audit log request failed' });
-    }
-
-    const data = await response.json();
-    return res.json(data);
+    return res.json({ count: entries.length, entries });
   } catch (error) {
-    return res.status(503).json({ message: 'Portfolio Analyzer is unavailable' });
+    return res.status(500).json({ message: 'Failed to load audit log' });
   }
 }
 

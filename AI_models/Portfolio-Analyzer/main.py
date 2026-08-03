@@ -47,6 +47,7 @@ def analyze(request: PortfolioRequest):
     response_data = {
         "user_id": request.user_id,
         "session_id": request.session_id,
+        "analyzer_version": app.version,
         "portfolio_analysis": portfolio_analysis,
         "risk_analysis": risk_analysis,
         "health_score": health_score,

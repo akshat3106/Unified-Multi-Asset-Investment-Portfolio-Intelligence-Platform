@@ -775,6 +775,129 @@
           </div>
         </section>
 
+        <!-- 8. Portfolio Analyzer Page (moved directly below Portfolio Performance/Holdings) -->
+        <section id="buddy-page" class="page">
+          <div class="welcome-row">
+            <div class="welcome-info">
+              <h3>Portfolio Analyzer</h3>
+              <div class="welcome-sub">
+                <span>AI-powered diversification and risk analysis for your holdings. Looking for the chatbot? Use the
+                  floating Finance Buddy button in the corner.</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="chat-layout">
+
+            <!-- Left panel: Portfolio Analyzer (Wider) -->
+            <div class="glass-card" style="border-color: rgba(59, 130, 246, 0.2);">
+              <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+                <i data-lucide="scan-search" style="color:var(--color-equity);"></i>
+                <strong style="font-size:1rem;">Portfolio Analyzer</strong>
+              </div>
+
+              <div id="portfolio-analyzer-idle">
+                <p style="font-size:0.85rem; color:var(--text-secondary); line-height:1.5; margin-bottom:18px;">
+                  Run an AI-powered diversification and risk analysis on your current holdings, with personalised
+                  recommendations.
+                </p>
+                <button class="btn btn-primary" id="portfolio-analyzer-run-btn"
+                  style="width:100%; justify-content:center;">
+                  Analyze My Portfolio
+                </button>
+              </div>
+
+              <div id="portfolio-analyzer-loading" style="display:none; text-align:center; padding:24px 0;">
+                <p style="font-size:0.85rem; color:var(--text-secondary);">Analyzing your portfolio…</p>
+              </div>
+
+              <div id="portfolio-analyzer-result" style="display:none;">
+                <!-- Populated via JS -->
+              </div>
+            </div>
+
+            <!-- Right panel: Portfolio Health -->
+            <div class="health-panel">
+
+              <!-- Health score card -->
+              <div class="glass-card health-score-hero">
+                <div class="stat-label" style="margin-bottom:12px;">Portfolio Health Score</div>
+                <div class="health-score-val" id="health-score-num">7.2</div>
+                <div class="health-score-label" id="health-score-txt">Good Health</div>
+
+                <div class="health-subscores">
+                  <div class="health-subscore-item">
+                    <div class="health-subscore-label">
+                      <span>Diversification</span>
+                      <strong id="health-score-div">8/10</strong>
+                    </div>
+                    <div class="health-subscore-bar-bg">
+                      <div class="health-subscore-bar-fill" id="health-bar-div" style="width: 80%;"></div>
+                    </div>
+                  </div>
+
+                  <div class="health-subscore-item">
+                    <div class="health-subscore-label">
+                      <span>Risk Alignment</span>
+                      <strong id="health-score-risk">6/10</strong>
+                    </div>
+                    <div class="health-subscore-bar-bg">
+                      <div class="health-subscore-bar-fill" id="health-bar-risk"
+                        style="width: 60%; background:var(--color-warning);"></div>
+                    </div>
+                  </div>
+
+                  <div class="health-subscore-item">
+                    <div class="health-subscore-label">
+                      <span>Goal Progress</span>
+                      <strong id="health-score-goals">7/10</strong>
+                    </div>
+                    <div class="health-subscore-bar-bg">
+                      <div class="health-subscore-bar-fill" id="health-bar-goals" style="width: 70%;"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Advisor connect nudge -->
+              <div class="glass-card" style="border-color: rgba(59, 130, 246, 0.2);">
+                <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+                  <i data-lucide="users" style="color:var(--color-equity);"></i>
+                  <strong style="font-size:0.95rem;">Talk to a human advisor</strong>
+                </div>
+                <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4; margin-bottom:16px;">
+                  Book a free 30-minute discovery call with a certified SEBI Registered Investment Advisor (RIA) to optimize your allocation plan.
+                </p>
+                <button class="btn btn-primary" id="buddy-book-call-btn" style="width:100%; justify-content:center;">
+                  Book Free RIA Session
+                </button>
+              </div>
+
+            </div>
+
+          </div>
+
+          <!-- Audit Log Section (Portfolio Analyzer request/response trail) -->
+          <div class="glass-card" id="audit-log-panel" style="margin-top: 20px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <i data-lucide="shield-check" style="color:var(--color-equity);"></i>
+                <strong style="font-size:0.95rem;">Portfolio Analyzer Audit Log</strong>
+              </div>
+              <button class="btn btn-secondary" id="audit-log-refresh-btn" style="padding:6px 14px; font-size:0.8rem;">
+                <i data-lucide="refresh-cw" style="width:14px; height:14px;"></i> Refresh
+              </button>
+            </div>
+            <p style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:14px;">
+              A read-only trail of every portfolio analysis request processed by the AI Portfolio Analyzer, for transparency and audit purposes.
+            </p>
+            <div id="audit-log-list" style="display:flex; flex-direction:column; gap:10px; max-height:360px; overflow-y:auto;">
+              <!-- Populated via JS -->
+              <p style="font-size:0.8rem; color:var(--text-secondary);">Loading audit log...</p>
+            </div>
+          </div>
+        </section>
+
         <!-- 5. Invest Page -->
         <section id="invest-page" class="page">
           <div class="filter-tabs-container" id="invest-category-tabs">
@@ -880,115 +1003,6 @@
           <div class="learn-section" id="learn-quizzes-section">
             <div class="glass-card quiz-container" id="quiz-container">
               <!-- Dynamically populated via JS -->
-            </div>
-          </div>
-        </section>
-
-        <!-- 8. Portfolio Analyzer Page -->
-        <section id="buddy-page" class="page">
-          <div class="welcome-row">
-            <div class="welcome-info">
-              <h3>Portfolio Analyzer</h3>
-              <div class="welcome-sub">
-                <span>AI-powered diversification and risk analysis for your holdings. Looking for the chatbot? Use the
-                  floating Finance Buddy button in the corner.</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="chat-layout">
-
-            <!-- Left panel: Portfolio Analyzer (Wider) -->
-            <div class="glass-card" style="border-color: rgba(59, 130, 246, 0.2);">
-              <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
-                <i data-lucide="scan-search" style="color:var(--color-equity);"></i>
-                <strong style="font-size:1rem;">Portfolio Analyzer</strong>
-              </div>
-
-              <div id="portfolio-analyzer-idle">
-                <p style="font-size:0.85rem; color:var(--text-secondary); line-height:1.5; margin-bottom:18px;">
-                  Run an AI-powered diversification and risk analysis on your current holdings, with personalised
-                  recommendations.
-                </p>
-                <button class="btn btn-primary" id="portfolio-analyzer-run-btn"
-                  style="width:100%; justify-content:center;">
-                  Analyze My Portfolio
-                </button>
-              </div>
-
-              <div id="portfolio-analyzer-loading" style="display:none; text-align:center; padding:24px 0;">
-                <p style="font-size:0.85rem; color:var(--text-secondary);">Analyzing your portfolio…</p>
-              </div>
-
-              <div id="portfolio-analyzer-result" style="display:none;">
-                <!-- Populated via JS -->
-              </div>
-            </div>
-
-            <!-- Right panel: Portfolio Health -->
-            <div class="health-panel">
-
-              <!-- Health score card -->
-              <div class="glass-card health-score-hero">
-                <div class="stat-label" style="margin-bottom:12px;">Portfolio Health Score</div>
-                <div class="health-score-val" id="health-score-num">7.2</div>
-                <div class="health-score-label" id="health-score-txt">Good Health</div>
-
-                <div class="health-subscores">
-                  <div class="health-subscore-item">
-                    <div class="health-subscore-label">
-                      <span>Diversification</span>
-                      <strong id="health-score-div">8/10</strong>
-                    </div>
-                    <div class="health-subscore-bar-bg">
-                      <div class="health-subscore-bar-fill" id="health-bar-div" style="width: 80%;"></div>
-                    </div>
-                  </div>
-
-                  <div class="health-subscore-item">
-                    <div class="health-subscore-label">
-                      <span>Risk Alignment</span>
-                      <strong id="health-score-risk">6/10</strong>
-                    </div>
-                    <div class="health-subscore-bar-bg">
-                      <div class="health-subscore-bar-fill" id="health-bar-risk"
-                        style="width: 60%; background:var(--color-warning);"></div>
-                    </div>
-                  </div>
-
-                  <div class="health-subscore-item">
-                    <div class="health-subscore-label">
-                      <span>Goal Progress</span>
-                      <strong id="health-score-goals">7/10</strong>
-                    </div>
-                    <div class="health-subscore-bar-bg">
-                      <div class="health-subscore-bar-fill" id="health-bar-goals" style="width: 70%;"></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-
-          </div>
-
-          <!-- Audit Log Section (Portfolio Analyzer request/response trail) -->
-          <div class="glass-card" id="audit-log-panel" style="margin-top: 20px;">
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
-              <div style="display:flex; align-items:center; gap:10px;">
-                <i data-lucide="shield-check" style="color:var(--color-equity);"></i>
-                <strong style="font-size:0.95rem;">Portfolio Analyzer Audit Log</strong>
-              </div>
-              <button class="btn btn-secondary" id="audit-log-refresh-btn" style="padding:6px 14px; font-size:0.8rem;">
-                <i data-lucide="refresh-cw" style="width:14px; height:14px;"></i> Refresh
-              </button>
-            </div>
-            <p style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:14px;">
-              A read-only trail of every portfolio analysis request processed by the AI Portfolio Analyzer, for transparency and audit purposes.
-            </p>
-            <div id="audit-log-list" style="display:flex; flex-direction:column; gap:10px; max-height:360px; overflow-y:auto;">
-              <!-- Populated via JS -->
-              <p style="font-size:0.8rem; color:var(--text-secondary);">Loading audit log...</p>
             </div>
           </div>
         </section>
@@ -1114,6 +1128,35 @@
       <div class="modal-footer-actions">
         <button class="btn btn-secondary" id="cancel-checkout-btn">Cancel</button>
         <button class="btn btn-primary" id="confirm-checkout-btn">Complete Purchase</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Broker Choice Modal (Invest Now -> pick Zerodha or Groww) -->
+  <div class="modal-overlay" id="modal-broker-choice">
+    <div class="modal-content">
+      <div class="modal-close-btn" id="close-modal-broker-choice"><i data-lucide="x"></i></div>
+      <h3 class="modal-title">Invest in <span id="broker-choice-stock-name">this stock</span></h3>
+      <p style="color:var(--text-secondary); font-size:0.85rem; margin-bottom:20px;">
+        Choose a broker to open <strong id="broker-choice-stock-symbol"></strong> and place your order.
+      </p>
+      <div class="broker-choice-options">
+        <button class="broker-choice-btn" id="broker-choice-zerodha">
+          <span class="broker-choice-logo" style="background:#387ed1;">Z</span>
+          <span class="broker-choice-text">
+            <strong>Zerodha</strong>
+            <small>Open via Kite</small>
+          </span>
+          <i data-lucide="arrow-up-right"></i>
+        </button>
+        <button class="broker-choice-btn" id="broker-choice-groww">
+          <span class="broker-choice-logo" style="background:#00d09c;">G</span>
+          <span class="broker-choice-text">
+            <strong>Groww</strong>
+            <small>Open via Groww</small>
+          </span>
+          <i data-lucide="arrow-up-right"></i>
+        </button>
       </div>
     </div>
   </div>
@@ -1283,7 +1326,7 @@
   </div>
 
   <div class="fab-chat-anchor" id="fab-chat-anchor">
-    <div class="fab-chat-label" id="fab-chat-label">Tap to chat 👋</div>
+    <div class="fab-chat-label" id="fab-chat-label">Tap to chat <span class="fab-chat-label-icon">👋</span></div>
     <button class="fab-chat-toggle" id="fab-chat-toggle" title="Chat with Finance Buddy">
       <i data-lucide="message-circle" class="fab-chat-icon-open"></i>
       <i data-lucide="x" class="fab-chat-icon-close"></i>

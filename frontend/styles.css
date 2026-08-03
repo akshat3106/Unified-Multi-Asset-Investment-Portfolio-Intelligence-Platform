@@ -2677,7 +2677,122 @@ body {
   font-size: 0.8rem;
 }
 
+/* Broker Choice Modal (Invest Now -> Zerodha / Groww) */
+.broker-choice-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.broker-choice-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--border-glass);
+  background: var(--bg-secondary, rgba(0, 0, 0, 0.03));
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.broker-choice-btn:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-equity);
+  background: rgba(37, 99, 235, 0.06);
+}
+
+.broker-choice-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  color: white;
+  font-weight: 700;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.broker-choice-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  color: var(--text-primary);
+}
+
+.broker-choice-text small {
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.broker-choice-btn i {
+  width: 18px;
+  height: 18px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
 /* Floating AI Finance Buddy widget (available on every page, draggable) */
+@keyframes gentle-float {
+  0% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(-2deg);
+  }
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+}
+
+@keyframes fab-pulse-ring {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.55;
+  }
+  70% {
+    transform: scale(1.55);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.55);
+    opacity: 0;
+  }
+}
+
+@keyframes fab-label-in {
+  0% {
+    opacity: 0;
+    transform: translateY(4px) scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes fab-icon-wiggle {
+  0%, 85%, 100% {
+    transform: rotate(0deg);
+  }
+  89% {
+    transform: rotate(-12deg);
+  }
+  92% {
+    transform: rotate(10deg);
+  }
+  95% {
+    transform: rotate(-6deg);
+  }
+  98% {
+    transform: rotate(4deg);
+  }
+}
+
 .fab-chat-anchor {
   position: fixed;
   bottom: 24px;
@@ -2690,6 +2805,11 @@ body {
   cursor: grab;
   touch-action: none;
   user-select: none;
+}
+
+.fab-chat-anchor:not(.dragging):not(.panel-open) {
+  animation: gentle-float 6s cubic-bezier(0.445, 0.05, 0.55, 0.95) infinite;
+  will-change: transform;
 }
 
 .fab-chat-anchor.dragging {
@@ -2707,7 +2827,14 @@ body {
   border-radius: 999px;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
   white-space: nowrap;
-  transition: opacity 0.15s ease;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  animation: fab-label-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.fab-chat-label .fab-chat-label-icon {
+  display: inline-block;
+  animation: fab-icon-wiggle 3.2s ease-in-out infinite;
+  transform-origin: 70% 70%;
 }
 
 .fab-chat-anchor.dragging .fab-chat-label,
@@ -2717,10 +2844,11 @@ body {
 }
 
 .fab-chat-toggle {
+  position: relative;
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  background: var(--color-equity);
+  background: linear-gradient(135deg, var(--color-equity) 0%, #7c3aed 100%);
   border: none;
   color: white;
   display: flex;
@@ -2728,11 +2856,35 @@ body {
   justify-content: center;
   cursor: pointer;
   box-shadow: 0 8px 24px rgba(37, 99, 235, 0.35);
-  transition: transform 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.fab-chat-toggle::before,
+.fab-chat-toggle::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--color-equity);
+  z-index: -1;
+  animation: fab-pulse-ring 2.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.fab-chat-toggle::after {
+  animation-delay: 1.3s;
+}
+
+.fab-chat-anchor.panel-open .fab-chat-toggle::before,
+.fab-chat-anchor.panel-open .fab-chat-toggle::after,
+.fab-chat-anchor.dragging .fab-chat-toggle::before,
+.fab-chat-anchor.dragging .fab-chat-toggle::after {
+  animation-play-state: paused;
+  opacity: 0;
 }
 
 .fab-chat-anchor:not(.dragging) .fab-chat-toggle:hover {
-  transform: scale(1.06);
+  transform: scale(1.08);
+  box-shadow: 0 10px 30px rgba(37, 99, 235, 0.5);
 }
 
 .fab-chat-toggle .fab-chat-icon-close {
@@ -2762,9 +2914,9 @@ body {
   flex-direction: column;
   overflow: hidden;
   opacity: 0;
-  transform: translateY(16px) scale(0.98);
+  transform: translateY(16px) scale(0.96);
   pointer-events: none;
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition: opacity 0.25s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .fab-chat-panel.active {
