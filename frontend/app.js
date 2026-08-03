@@ -3112,6 +3112,162 @@ function setupModals() {
     }
   });
 
+  // Dropdown Menu Toggle
+  window.myFunction = function() {
+    const dropdown = document.getElementById("myDropdown");
+    if (dropdown) {
+      dropdown.classList.toggle("show");
+    }
+  };
+
+  // Close dropdown menu when clicking outside
+  window.addEventListener('click', (event) => {
+    if (!event.target.closest('.profile-link-consent-row') && !event.target.matches('.dropbtn')) {
+      const dropdowns = document.getElementsByClassName("dropdown-content");
+      for (let i = 0; i < dropdowns.length; i++) {
+        dropdowns[i].classList.remove('show');
+      }
+    }
+  });
+
+  // Link Account Modal Controller
+  let selectedAccountType = null;
+  const linkModal = document.getElementById("link-account-modal");
+  const openModalBtn = document.getElementById("dropdown");
+  const closeModalBtn = document.getElementById("close-link-modal");
+  const continueBtn = document.getElementById("continue-link-account");
+
+  function openLinkAccountModal() {
+    if (linkModal) {
+      linkModal.classList.add("active");
+    }
+  }
+
+  function closeLinkAccountModal() {
+    if (linkModal) {
+      linkModal.classList.remove("active");
+    }
+  }
+
+  if (openModalBtn) {
+    openModalBtn.addEventListener("click", openLinkAccountModal);
+  }
+
+  document.querySelectorAll('#myDropdown [data-action="link-account"]').forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const type = btn.getAttribute("data-type");
+      const dropdown = document.getElementById("myDropdown");
+      if (dropdown) dropdown.classList.remove("show");
+      
+      if (type) {
+        document.querySelectorAll(".account-option").forEach(c => {
+          c.classList.toggle("selected", c.dataset.type === type);
+        });
+        selectedAccountType = type;
+      }
+      openLinkAccountModal();
+    });
+  });
+
+  document.querySelectorAll('[data-action="link-account"], #linkBankBtn, #profile-link-consent-btn, #dropdownMenuButton').forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      if (btn.id === 'dropdownMenuButton') return; // Handled by myFunction toggle
+      openLinkAccountModal();
+    });
+  });
+
+  if (closeModalBtn) {
+    closeModalBtn.addEventListener("click", closeLinkAccountModal);
+  }
+
+  if (linkModal) {
+    linkModal.addEventListener("click", (e) => {
+      if (e.target === linkModal) {
+        closeLinkAccountModal();
+      }
+    });
+  }
+
+  document.querySelectorAll(".account-option").forEach(card => {
+    card.addEventListener("click", () => {
+      document.querySelectorAll(".account-option").forEach(c => {
+        c.classList.remove("selected");
+      });
+      card.classList.add("selected");
+      selectedAccountType = card.dataset.type;
+    });
+  });
+
+  if (continueBtn) {
+    continueBtn.addEventListener("click", () => {
+      if (!selectedAccountType) {
+        const optionsContainer = document.querySelector(".account-options");
+        if (optionsContainer) {
+          optionsContainer.style.boxShadow = "0 0 0 3px rgba(220, 38, 38, 0.4)";
+          setTimeout(() => optionsContainer.style.boxShadow = "", 800);
+        }
+        return;
+      }
+
+      closeLinkAccountModal();
+
+      const accountConfigs = {
+        bank: {
+          name: "HDFC Bank (Account Aggregator)",
+          type: "Bank Account Aggregator"
+        },
+        zerodha: {
+          name: "Zerodha / Groww Demat",
+          type: "Demat Account Feed"
+        },
+        mf: {
+          name: "MF Central / CAMS",
+          type: "Mutual Fund Portfolio Feed"
+        },
+        gold: {
+          name: "SafeGold / MMTC",
+          type: "Digital Gold Vault"
+        }
+      };
+
+      const config = accountConfigs[selectedAccountType] || {
+        name: "Financial Account",
+        type: "Linked Account Feed"
+      };
+
+      if (selectedAccountType === 'bank' && typeof window.openFinvuWidget === 'function') {
+        try {
+          window.openFinvuWidget();
+        } catch (e) {
+          console.warn("Finvu widget fallback:", e);
+        }
+      }
+      
+      addConsentAccount(config.name, config.type);
+    });
+  }
+
+  function addConsentAccount(name, type) {
+    state.consents.push({
+      id: `c_${Date.now()}`,
+      accountName: name,
+      sourceType: type,
+      status: "Linked",
+      logo: name.substring(0, 2).toUpperCase()
+    });
+    state.notifications.unshift({
+      id: `n_consent_${Date.now()}`,
+      type: "success",
+      title: "Account Consent Authorized",
+      description: `Linked ${name} (${type}) feed to your unified investing dashboard.`,
+      time: "Just Now",
+      unread: true
+    });
+    renderAll();
+  }
+  
+
   // D. Risk profile quiz modal (trigger on Profile Page)
   const profileRetakeQuizBtn = document.getElementById('profile-retake-quiz-btn');
   if (profileRetakeQuizBtn) {
@@ -3147,32 +3303,7 @@ function setupModals() {
     renderAll();
   });
   
-  // Link More Consent Account
-  const linkConsentBtn = document.getElementById('profile-link-consent-btn');
-  if (linkConsentBtn) {
-    linkConsentBtn.addEventListener('click', () => {
-      const consentName = prompt("Enter bank or broking account provider to link via Account Aggregator:", "ICICI Direct");
-      if (consentName && consentName.trim().length > 0) {
-        state.consents.push({
-          id: `c_${Date.now()}`,
-          accountName: consentName,
-          sourceType: "Account Aggregator Consent",
-          status: "Linked",
-          logo: consentName.substring(0, 2).toUpperCase()
-        });
-        
-        state.notifications.unshift({
-          id: `n_consent_${Date.now()}`,
-          type: "success",
-          title: "Account Consent Authorized",
-          description: `Linked ${consentName} data feed to your unified investing dashboard.`,
-          time: "Just Now",
-          unread: true
-        });
-        renderAll();
-      }
-    });
-  }
+  // Link More Consent Account - delegates to Link Account Modal (openLinkAccountModal)
 }
 
 // Direct buy/sell order modal checkout
