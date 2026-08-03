@@ -80,6 +80,18 @@
         </div>
 
         <div class="topbar-actions">
+          <div class="profile-link-consent-row">
+            <button onclick="myFunction()" class="dropbtn" id="dropdownMenuButton">
+              <i data-lucide="plus-circle" style="width: 15px; height: 15px;"></i> Link Account <i data-lucide="chevron-down" style="width: 14px; height: 14px;"></i>
+            </button>
+            <div id="myDropdown" class="dropdown-content">
+              <button data-action="link-account" data-type="bank">🏦 Bank Account (AA)</button>
+              <button data-action="link-account" data-type="zerodha">📈Zerodha</button>
+              <button data-action="link-account" data-type="mf">📊 Mutual Funds</button>
+              <button data-action="link-account" data-type="gold">🪙 Digital Gold</button>
+            </div>
+          </div>
+
           <button class="topbar-btn" id="topbar-bell-btn" title="View Notifications">
             <i data-lucide="bell"></i>
             <div class="unread-dot" id="topbar-bell-dot"></div>
@@ -390,10 +402,10 @@
               <div class="glass-card">
                 <div class="card-header-row">
                   <h4 class="card-title">Linked Data Consents</h4>
-                  <button class="btn btn-secondary" id="profile-link-consent-btn"
+                  <!-- <button class="btn btn-secondary" id="profile-link-consent-btn"
                     style="padding:6px 12px; font-size:0.75rem;">
                     <i data-lucide="plus" style="width:14px;height:14px;"></i> Link More
-                  </button>
+                  </button> -->
                 </div>
 
                 <div id="linked-accounts-container">
@@ -1289,6 +1301,67 @@
     </div>
   </div>
 
+  <!-- Link Account Modal -->
+  <div class="modal-overlay" id="link-account-modal">
+    <div class="link-modal">
+      <div class="link-modal-header">
+        <div>
+          <h2>Link Financial Account</h2>
+          <p>Choose an account to connect with AssetBridge.</p>
+        </div>
+        <button class="close-modal" id="close-link-modal" aria-label="Close modal">
+          ✕
+        </button>
+      </div>
+
+      <div class="account-options">
+        <div class="account-option" data-type="bank">
+          <div class="account-icon bank">
+            🏦
+          </div>
+          <div class="account-details">
+            <h3>Bank Account</h3>
+            <p>Connect through Account Aggregator</p>
+          </div>
+        </div>
+
+        <div class="account-option" data-type="zerodha">
+          <div class="account-icon demat">
+            📈
+          </div>
+          <div class="account-details">
+            <h3>Demat Account</h3>
+            <p>Zerodha, Groww, Upstox & more</p>
+          </div>
+        </div>
+
+        <div class="account-option" data-type="mf">
+          <div class="account-icon mf">
+            📊
+          </div>
+          <div class="account-details">
+            <h3>Mutual Funds</h3>
+            <p>MF Central / CAMS / KFintech</p>
+          </div>
+        </div>
+
+        <div class="account-option" data-type="gold">
+          <div class="account-icon gold">
+            🪙
+          </div>
+          <div class="account-details">
+            <h3>Digital Gold</h3>
+            <p>SafeGold • MMTC • PhonePe</p>
+          </div>
+        </div>
+      </div>
+
+      <button class="continue-btn" id="continue-link-account">
+        Continue →
+      </button>
+    </div>
+  </div>
+
   <!-- Floating AI Finance Buddy widget — available on every page -->
   <div class="fab-chat-panel" id="fab-chat-panel">
     <div class="chat-header">
@@ -1335,6 +1408,44 @@
 
   <!-- Update your script tag at the bottom of index.html -->
   <script type="module" src="app.js?v=1.2"></script>
+  <script src="https://reactjssdk.finvu.in/sdk/connector/finvu-client-sdk.js"></script>
+  <script>
+        const widgetProps = {
+            environment: "UAT",
+            clientId: "<your_client_id>",
+            clientSecret: "<your_client_secret>",
+            redirect_uri: "<your_redirect_uri>",
+            callbackUrl: "<your_redirect_uri>",
+            consentSource: "<your_consent_source>",
+            theme: {
+                primaryColor: "#4CAF50",
+                primaryColorHover: "#45a049",
+                backgroundColor: "#f9f9f9",
+                textColor: "#333333"
+            },
+            logoUrl: "https://example.com/your-logo.png",
+            showLoader: true,
+            connectionName: "My Bank",
+            enablePopUp: true,
+            language: "en-US"
+        };
+
+        function openFinvuWidget() {
+            if (typeof finvu === 'undefined' || !finvu.ConnectorSDK) {
+                console.warn("Finvu SDK not ready");
+                return;
+            }
+            const widget = new finvu.ConnectorSDK(widgetProps);
+            widget.open()
+                .then((result) => {
+                    console.log("Widget closed successfully.", result);
+                })
+                .catch((error) => {
+                    console.error("An error occurred:", error);
+                });
+        }
+        window.openFinvuWidget = openFinvuWidget;
+    </script>
 
 </body>
 
