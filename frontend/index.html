@@ -393,6 +393,19 @@
                 </button>
               </div>
 
+              <!-- Danger zone: Delete Account -->
+              <div class="glass-card" style="border:1px solid rgba(220,38,38,0.25);">
+                <div class="card-header-row">
+                  <h4 class="card-title" style="color:#dc2626;">Delete Account</h4>
+                </div>
+                <p style="color:var(--text-secondary); font-size:0.85rem; margin:8px 0 16px;">
+                  Permanently delete your AssetBridge account, including all linked consents, portfolio data, and preferences. This action cannot be undone.
+                </p>
+                <button class="btn" id="profile-delete-account-btn" style="background:#dc2626; color:#fff;">
+                  <i data-lucide="trash-2" style="width:14px; height:14px;"></i> Delete Account
+                </button>
+              </div>
+
             </div>
 
             <!-- Right col: Linked Accounts & Alert/Drift Rules -->
@@ -431,7 +444,20 @@
         </div>
         </section>
 
-
+        <!-- Delete Account Confirmation Modal -->
+        <div class="modal-overlay" id="modal-delete-account">
+          <div class="modal-content">
+            <div class="modal-close-btn" id="close-modal-delete-account"><i data-lucide="x"></i></div>
+            <h3 class="modal-title" style="color:#dc2626;">Delete Account?</h3>
+            <p style="color:var(--text-secondary); font-size:0.85rem; line-height:1.5; margin-bottom:20px;">
+              This will permanently delete your account and remove all linked accounts, portfolio history, and settings. This action cannot be undone. Are you sure you want to continue?
+            </p>
+            <div class="modal-footer-actions">
+              <button class="btn btn-secondary" id="cancel-delete-account-btn">Cancel</button>
+              <button class="btn" id="confirm-delete-account-btn" style="background:#dc2626; color:#fff;">Yes, Delete My Account</button>
+            </div>
+          </div>
+        </div>
 
         <!-- 4. How It Works Page / Section -->
         <section id="how-it-works-page" class="page landing-section">
@@ -1169,6 +1195,69 @@
           </span>
           <i data-lucide="arrow-up-right"></i>
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Terms & Conditions Modal (gates Invest Now / Link Account) -->
+  <div class="modal-overlay" id="modal-tnc">
+    <div class="modal-content modal-content-wide">
+      <div class="modal-close-btn" id="close-modal-tnc"><i data-lucide="x"></i></div>
+      <h3 class="modal-title">Terms &amp; Conditions</h3>
+      <p style="color:var(--text-secondary); font-size:0.78rem; margin-bottom:14px;">Last Updated: August 2026</p>
+
+      <div style="max-height:340px; overflow-y:auto; padding-right:8px; font-size:0.85rem; line-height:1.6; color:var(--text-primary);">
+        <h4>1. Acceptance of Terms</h4>
+        <p>By accessing or using this Platform, you acknowledge that you have read, understood, and agree to be bound by these Terms &amp; Conditions and our Privacy Policy. If you do not agree with these terms, you must discontinue using the Platform.</p>
+
+        <h4>2. Eligibility</h4>
+        <p>You must: be at least 18 years of age or meet the legal age required in your jurisdiction; provide accurate and complete registration information; maintain the confidentiality of your account credentials.</p>
+
+        <h4>3. Platform Purpose</h4>
+        <p>The Platform provides portfolio aggregation across multiple investment accounts, investment tracking and analytics, AI-powered investment insights, financial education resources, market information and research tools, and integration with supported third-party financial institutions. The Platform is intended to assist users in understanding their investments and should not be considered a substitute for professional financial advice.</p>
+
+        <h4>4. Investment Disclaimer</h4>
+        <p>The Platform does not guarantee investment returns, future market performance, accuracy of predictions, or profitability of any investment strategy. All investments involve risk, including the possible loss of principal. Users are solely responsible for their investment decisions.</p>
+
+        <h4>5. AI-Generated Recommendations</h4>
+        <p>Our AI-generated recommendations are provided for informational and educational purposes only. Users acknowledge that AI recommendations may not always be accurate, should not be treated as financial, legal, or tax advice, and that users should conduct independent research before making investment decisions.</p>
+
+        <h4>6. Third-Party Integrations</h4>
+        <p>The Platform may integrate with stock brokers, banks, mutual fund platforms, financial institutions, and market data providers. We are not responsible for downtime of third-party services, delayed transactions, incorrect data provided by third-party providers, or changes made by third-party platforms.</p>
+
+        <h4>7. User Responsibilities</h4>
+        <p>Users agree to provide truthful information, maintain account security, use the Platform only for lawful purposes, and not attempt unauthorized access or misuse of the Platform.</p>
+
+        <h4>8. Data Privacy</h4>
+        <p>We collect and process user information solely to provide Platform functionality. User data may include portfolio information, investment preferences, linked financial accounts, and account profile information. We implement reasonable security measures to protect user information.</p>
+
+        <h4>9. Intellectual Property</h4>
+        <p>All software, designs, logos, graphics, algorithms, and content available on the Platform remain the intellectual property of the Platform owners unless otherwise stated. Users may not copy, distribute, reverse engineer, or reproduce any portion of the Platform without prior written permission.</p>
+
+        <h4>10. Limitation of Liability</h4>
+        <p>To the maximum extent permitted by law, the Platform shall not be liable for investment losses, market fluctuations, service interruptions, data inaccuracies from third-party providers, or indirect, incidental, or consequential damages.</p>
+
+        <h4>11. Account Suspension</h4>
+        <p>We reserve the right to suspend or terminate accounts that violate these Terms, engage in fraudulent activities, attempt unauthorized access, or abuse Platform services.</p>
+
+        <h4>12. Modifications</h4>
+        <p>We may update these Terms &amp; Conditions at any time. Continued use of the Platform after updates constitutes acceptance of the revised Terms.</p>
+
+        <h4>13. Governing Law</h4>
+        <p>These Terms shall be governed by and interpreted in accordance with the laws of India. Any disputes shall be subject to the exclusive jurisdiction of the competent courts in India.</p>
+
+        <h4>14. Contact</h4>
+        <p>For questions regarding these Terms &amp; Conditions, please contact us through the support channels provided within the Platform.</p>
+      </div>
+
+      <label style="display:flex; align-items:flex-start; gap:10px; margin-top:16px; font-size:0.82rem; color:var(--text-primary); cursor:pointer;">
+        <input type="checkbox" id="tnc-accept-checkbox" style="margin-top:3px;">
+        <span>I confirm that I have read, understood, and agree to the Terms &amp; Conditions and Privacy Policy. I acknowledge that the Platform provides informational tools and AI-assisted insights, and that all investment decisions remain my own responsibility.</span>
+      </label>
+
+      <div class="modal-footer-actions">
+        <button class="btn btn-secondary" id="tnc-cancel-btn">Cancel</button>
+        <button class="btn btn-primary" id="tnc-accept-btn" disabled>I Agree &amp; Continue</button>
       </div>
     </div>
   </div>

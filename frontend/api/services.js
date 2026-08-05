@@ -41,6 +41,14 @@ export function syncUser() {
 }
 
 /**
+ * DELETE /api/users/me — permanently deletes the calling user's Mongo
+ * record, holdings, audit logs, and their Firebase Auth account.
+ */
+export function deleteAccount() {
+  return apiRequest(ENDPOINTS.userDelete, { method: 'DELETE' });
+}
+
+/**
  * PATCH /api/v1/users/me
  * @param {{ fullName?: string, phone?: string, riskProfile?: string }} payload
  */

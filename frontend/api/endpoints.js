@@ -15,6 +15,7 @@ export const ENDPOINTS = {
   // ─── User / Profile ───────────────────────────────────────────────────────
   userMe: `${API_PREFIX}/users/me`,
   userSync: '/api/users/sync',
+  userDelete: '/api/users/me',
 
   // ─── Portfolio & Dashboard ──────────────────────────────────────────────────
   portfolioSummary: `${API_PREFIX}/portfolio/summary`,

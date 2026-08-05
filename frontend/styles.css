@@ -3443,6 +3443,19 @@ input:checked+.slider:before {
   display: block;
 }
 
+/* Modals triggered from the profile page (delete account, risk quiz, etc.)
+   must render above the profile overlay itself. */
+#modal-delete-account.active,
+#modal-risk-quiz.active {
+  z-index: 600;
+}
+
+/* Terms & Conditions gate can be triggered from inside another already-open
+   modal (Link Account, Invest Now) — it must render above them. */
+#modal-tnc.active {
+  z-index: 700;
+}
+
 .profile-page-inner {
   max-width: 1400px;
   margin: 0 auto;
