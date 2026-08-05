@@ -1,6 +1,8 @@
 const User = require('../models/User');
 const Holding = require('../models/Holding');
 const MockPortfolioTemplate = require('../models/MockPortfolioTemplate');
+const PortfolioAuditLog = require('../models/PortfolioAuditLog');
+const { auth } = require('../config/firebase');
 
 // Copies a random mock portfolio template's holdings to a newly registered
 // user, since there's no real broker API to pull actual holdings from.
@@ -50,4 +52,29 @@ const syncUser = async (req, res) => {
   }
 };
 
-module.exports = { syncUser };
+// DELETE /api/users/me
+// Permanently deletes the calling user: their Mongo record, holdings, audit
+// logs, and their Firebase Auth account.
+const deleteAccount = async (req, res) => {
+  const { uid } = req.firebaseUser;
+
+  try {
+    const user = await User.findOne({ firebaseUid: uid });
+
+    if (user) {
+      await Promise.all([
+        Holding.deleteMany({ user: user._id }),
+        PortfolioAuditLog.deleteMany({ userId: uid }),
+        User.deleteOne({ _id: user._id }),
+      ]);
+    }
+
+    await auth().deleteUser(uid);
+
+    res.status(200).json({ message: 'Account deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to delete account', error: error.message });
+  }
+};
+
+module.exports = { syncUser, deleteAccount };

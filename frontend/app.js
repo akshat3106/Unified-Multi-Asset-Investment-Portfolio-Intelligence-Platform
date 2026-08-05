@@ -1,7 +1,7 @@
 // AssetBridge Unified Investing Dashboard - App Core Logic
 //0. FIREBASE AUTH
 // 1. Firebase SDK Imports
-import { searchStocks, searchMutualFunds, getStockQuote, getStockChart, getMarketIndices, streamChatMessage, getAuditLog, analyzePortfolio, getMutualFundCatalog, getEquityCatalog, getGoldCatalog, setAuthTokenProvider, syncUser, getHoldings, getPortfolioPerformance } from './api/index.js';
+import { searchStocks, searchMutualFunds, getStockQuote, getStockChart, getMarketIndices, streamChatMessage, getAuditLog, analyzePortfolio, getMutualFundCatalog, getEquityCatalog, getGoldCatalog, setAuthTokenProvider, syncUser, getHoldings, getPortfolioPerformance, deleteAccount } from './api/index.js';
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { 
   getAuth, 
@@ -1308,11 +1308,40 @@ function growwSlug(name) {
     .replace(/^-+|-+$/g, '');
 }
 
+// Terms & Conditions gate — shown before a user's first Invest Now / Link
+// Account action; acceptance is remembered per Firebase account (keyed by
+// uid) so every account is prompted, but each one only ever sees it once.
+const TNC_ACCEPTED_KEY_PREFIX = 'assetbridge_tnc_accepted_';
+let pendingTncAction = null;
+
+function tncAcceptedKey() {
+  const uid = auth.currentUser ? auth.currentUser.uid : 'anonymous';
+  return `${TNC_ACCEPTED_KEY_PREFIX}${uid}`;
+}
+
+function requireTncAccept(action) {
+  if (localStorage.getItem(tncAcceptedKey()) === 'true') {
+    action();
+    return;
+  }
+  pendingTncAction = action;
+  const tncModal = document.getElementById('modal-tnc');
+  const tncCheckbox = document.getElementById('tnc-accept-checkbox');
+  const tncAcceptBtn = document.getElementById('tnc-accept-btn');
+  if (tncCheckbox) tncCheckbox.checked = false;
+  if (tncAcceptBtn) tncAcceptBtn.disabled = true;
+  if (tncModal) tncModal.classList.add('active');
+}
+
 // "Invest Now" on a live stock/gold-ETF/mutual-fund card -> let the user pick
 // which broker to place the actual order with, then deep-link to that
 // instrument on the broker's site. `assetType` is 'equity' (stocks & gold
 // ETFs, both traded on NSE) or 'mf' (mutual fund schemes).
 function openBrokerChoiceModal(item, assetType = 'equity') {
+  requireTncAccept(() => _openBrokerChoiceModal(item, assetType));
+}
+
+function _openBrokerChoiceModal(item, assetType = 'equity') {
   const symbol = bareSymbol(item.symbol);
   document.getElementById('broker-choice-stock-name').textContent = item.name;
   document.getElementById('broker-choice-stock-symbol').textContent = symbol;
@@ -2998,6 +3027,35 @@ function setupModals() {
   // Broker Choice (Invest Now on a live stock)
   document.getElementById('close-modal-broker-choice').addEventListener('click', () => closeModal('modal-broker-choice'));
 
+  // Terms & Conditions gate (shown before first Invest Now / Link Account action)
+  const tncCheckbox = document.getElementById('tnc-accept-checkbox');
+  const tncAcceptBtn = document.getElementById('tnc-accept-btn');
+  const tncCancelBtn = document.getElementById('tnc-cancel-btn');
+  const tncCloseBtn = document.getElementById('close-modal-tnc');
+
+  const cancelTnc = () => {
+    pendingTncAction = null;
+    closeModal('modal-tnc');
+  };
+
+  if (tncCheckbox && tncAcceptBtn) {
+    tncCheckbox.addEventListener('change', () => {
+      tncAcceptBtn.disabled = !tncCheckbox.checked;
+    });
+  }
+  if (tncAcceptBtn) {
+    tncAcceptBtn.addEventListener('click', () => {
+      if (tncAcceptBtn.disabled) return;
+      localStorage.setItem(tncAcceptedKey(), 'true');
+      closeModal('modal-tnc');
+      const action = pendingTncAction;
+      pendingTncAction = null;
+      if (action) action();
+    });
+  }
+  if (tncCancelBtn) tncCancelBtn.addEventListener('click', cancelTnc);
+  if (tncCloseBtn) tncCloseBtn.addEventListener('click', cancelTnc);
+
   // A. Add Funds
   document.getElementById('action-add-funds').addEventListener('click', () => openModal('modal-add-funds'));
   document.getElementById('close-modal-funds').addEventListener('click', () => closeModal('modal-add-funds'));
@@ -3210,41 +3268,43 @@ function setupModals() {
         return;
       }
 
-      closeLinkAccountModal();
+      requireTncAccept(() => {
+        closeLinkAccountModal();
 
-      const accountConfigs = {
-        bank: {
-          name: "HDFC Bank (Account Aggregator)",
-          type: "Bank Account Aggregator"
-        },
-        zerodha: {
-          name: "Zerodha / Groww Demat",
-          type: "Demat Account Feed"
-        },
-        mf: {
-          name: "MF Central / CAMS",
-          type: "Mutual Fund Portfolio Feed"
-        },
-        gold: {
-          name: "SafeGold / MMTC",
-          type: "Digital Gold Vault"
+        const accountConfigs = {
+          bank: {
+            name: "HDFC Bank (Account Aggregator)",
+            type: "Bank Account Aggregator"
+          },
+          zerodha: {
+            name: "Zerodha / Groww Demat",
+            type: "Demat Account Feed"
+          },
+          mf: {
+            name: "MF Central / CAMS",
+            type: "Mutual Fund Portfolio Feed"
+          },
+          gold: {
+            name: "SafeGold / MMTC",
+            type: "Digital Gold Vault"
+          }
+        };
+
+        const config = accountConfigs[selectedAccountType] || {
+          name: "Financial Account",
+          type: "Linked Account Feed"
+        };
+
+        if (selectedAccountType === 'bank' && typeof window.openFinvuWidget === 'function') {
+          try {
+            window.openFinvuWidget();
+          } catch (e) {
+            console.warn("Finvu widget fallback:", e);
+          }
         }
-      };
 
-      const config = accountConfigs[selectedAccountType] || {
-        name: "Financial Account",
-        type: "Linked Account Feed"
-      };
-
-      if (selectedAccountType === 'bank' && typeof window.openFinvuWidget === 'function') {
-        try {
-          window.openFinvuWidget();
-        } catch (e) {
-          console.warn("Finvu widget fallback:", e);
-        }
-      }
-      
-      addConsentAccount(config.name, config.type);
+        addConsentAccount(config.name, config.type);
+      });
     });
   }
 
@@ -3807,7 +3867,7 @@ function setupPortfolioAnalyzer() {
   const runBtn = document.getElementById('portfolio-analyzer-run-btn');
   if (!runBtn) return;
 
-  runBtn.addEventListener('click', runPortfolioAnalysis);
+  runBtn.addEventListener('click', () => requireTncAccept(runPortfolioAnalysis));
 }
 
 async function runPortfolioAnalysis() {
@@ -4166,6 +4226,44 @@ document.addEventListener('DOMContentLoaded', () => {
         closeProfilePage();
       } catch (err) {
         alert('Sign out failed. Please try again.');
+      }
+    });
+  }
+
+  // Delete Account (with confirmation modal)
+  const deleteAccountBtn = document.getElementById('profile-delete-account-btn');
+  const deleteAccountModal = document.getElementById('modal-delete-account');
+  const closeDeleteAccountBtn = document.getElementById('close-modal-delete-account');
+  const cancelDeleteAccountBtn = document.getElementById('cancel-delete-account-btn');
+  const confirmDeleteAccountBtn = document.getElementById('confirm-delete-account-btn');
+
+  const closeDeleteAccountModal = () => deleteAccountModal && deleteAccountModal.classList.remove('active');
+
+  if (deleteAccountBtn) {
+    deleteAccountBtn.addEventListener('click', () => {
+      if (deleteAccountModal) deleteAccountModal.classList.add('active');
+    });
+  }
+  if (closeDeleteAccountBtn) closeDeleteAccountBtn.addEventListener('click', closeDeleteAccountModal);
+  if (cancelDeleteAccountBtn) cancelDeleteAccountBtn.addEventListener('click', closeDeleteAccountModal);
+
+  if (confirmDeleteAccountBtn) {
+    confirmDeleteAccountBtn.addEventListener('click', async () => {
+      confirmDeleteAccountBtn.disabled = true;
+      confirmDeleteAccountBtn.textContent = 'Deleting...';
+      try {
+        // Backend deletes the Mongo record, holdings, audit logs, and the
+        // Firebase Auth account itself (via Admin SDK) — client just needs
+        // to drop its now-stale local session afterward.
+        await deleteAccount();
+        closeDeleteAccountModal();
+        closeProfilePage();
+        await signOut(auth);
+      } catch (err) {
+        alert('Failed to delete account. Please try again.');
+      } finally {
+        confirmDeleteAccountBtn.disabled = false;
+        confirmDeleteAccountBtn.textContent = 'Yes, Delete My Account';
       }
     });
   }
