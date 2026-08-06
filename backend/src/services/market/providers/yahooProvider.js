@@ -2,6 +2,41 @@ const YahooFinance = require('yahoo-finance2').default;
 
 const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 
+// Yahoo's unofficial API aggressively rate-limits (429 "Failed to get crumb")
+// when many quote requests fire concurrently from a shared/datacenter IP
+// (e.g. Render, Vercel functions). Caching short-lived results and running
+// requests through a small concurrency-limited queue keeps us well under
+// that threshold instead of bursting 9+ requests at once.
+const QUOTE_CACHE_TTL_MS = 60 * 1000;
+const quoteCache = new Map(); // symbol -> { data, expiresAt }
+
+const cachedQuote = async (symbol) => {
+  const cached = quoteCache.get(symbol);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data;
+  }
+  const data = await yahooFinance.quote(symbol);
+  quoteCache.set(symbol, { data, expiresAt: Date.now() + QUOTE_CACHE_TTL_MS });
+  return data;
+};
+
+// Runs async tasks with at most `limit` in flight at once, instead of firing
+// every request in parallel (which is what triggers Yahoo's rate limiting).
+const runWithConcurrencyLimit = async (items, limit, task) => {
+  const results = new Array(items.length);
+  let cursor = 0;
+
+  const worker = async () => {
+    while (cursor < items.length) {
+      const index = cursor++;
+      results[index] = await Promise.allSettled([task(items[index])]).then(([r]) => r);
+    }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+};
+
 const INDEX_SYMBOLS = {
   NIFTY_50: '^NSEI',
   SENSEX: '^BSESN',
@@ -34,7 +69,7 @@ const search = async (query, { quoteType = 'EQUITY' } = {}) => {
 };
 
 const getQuote = async (symbol) => {
-  const quote = await yahooFinance.quote(symbol);
+  const quote = await cachedQuote(symbol);
   return {
     symbol: quote.symbol,
     name: quote.longName || quote.shortName || quote.symbol,
@@ -91,7 +126,8 @@ const getChart = async (symbol, { range = '1mo', interval = '1d' } = {}) => {
 
 const getIndices = async () => {
   const symbols = Object.values(INDEX_SYMBOLS);
-  const quotes = await Promise.all(symbols.map((symbol) => yahooFinance.quote(symbol)));
+  const results = await runWithConcurrencyLimit(symbols, 3, cachedQuote);
+  const quotes = results.filter((r) => r.status === 'fulfilled').map((r) => r.value);
 
   return quotes.map((quote) => ({
     symbol: quote.symbol,
@@ -131,7 +167,7 @@ const getMutualFundCatalog = async () => {
     .filter((r) => r.status === 'fulfilled' && r.value)
     .map((r) => r.value);
 
-  const quoteResults = await Promise.allSettled(symbols.map((symbol) => yahooFinance.quote(symbol)));
+  const quoteResults = await runWithConcurrencyLimit(symbols, 3, cachedQuote);
 
   return quoteResults
     .filter((r) => r.status === 'fulfilled' && r.value)
@@ -153,7 +189,7 @@ const getMutualFundCatalog = async () => {
 // Fetches quotes for a fixed symbol list in parallel, silently dropping any
 // symbol that fails to resolve (delisted, renamed, wrong suffix, etc.).
 const getQuoteCatalog = async (symbols, typeLabel) => {
-  const quoteResults = await Promise.allSettled(symbols.map((symbol) => yahooFinance.quote(symbol)));
+  const quoteResults = await runWithConcurrencyLimit(symbols, 3, cachedQuote);
 
   return quoteResults
     .filter((r) => r.status === 'fulfilled' && r.value)
