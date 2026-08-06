@@ -1084,13 +1084,13 @@ function renderPortfolioBreakdown() {
     tr.innerHTML = `
       <td>
         <div class="portfolio-asset-info">
-          <div class="portfolio-asset-logo ${h.category}" style="position:relative; overflow:hidden;">
-            <span>${h.shortName.substring(0, 4)}</span>
-            ${h.logoUrl ? `<img src="${h.logoUrl}" alt="" loading="lazy" onerror="this.remove()" style="position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:#fff; padding:4px;">` : ''}
+          <div class="portfolio-asset-logo ${h.category}">
+            <span>${assetInitials(h.name)}</span>
+            ${h.logoUrl ? `<img src="${h.logoUrl}" alt="" loading="lazy" onerror="this.remove()">` : ''}
           </div>
           <div style="min-width:0;">
-            <div style="font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${h.name}">${h.name}</div>
-            <div style="font-size:0.72rem; color:var(--text-secondary); margin-top:2px;">${h.category.toUpperCase()} · Invested ${formatRupee(h.invested)}</div>
+            <div class="portfolio-asset-name" title="${h.name}">${h.name}</div>
+            <div class="portfolio-asset-meta">${h.category.toUpperCase()} · Invested ${formatRupee(h.invested)}</div>
           </div>
         </div>
       </td>
@@ -1105,6 +1105,15 @@ function renderPortfolioBreakdown() {
     `;
     tbody.appendChild(tr);
   });
+}
+
+// Yahoo's Indian mutual fund scheme codes (e.g. "0P0000XYZ.BO") make unreadable
+// logo initials, so the fallback badge is derived from the fund/company name
+// itself instead — first letter of the first two words.
+function assetInitials(name) {
+  const words = (name || '').trim().split(/\s+/).filter(Boolean);
+  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+  return (name || '').slice(0, 2).toUpperCase();
 }
 
 // C. Invest View Render
@@ -1238,8 +1247,9 @@ function renderEquityResults(stocks) {
     const bentoClass = 'b-c2 b-r1';
 
     const isUp = stock.changePercent >= 0;
+    const isGold = stock.type === 'GOLD ETF';
 
-    card.className = `glass-card fund-card ${bentoClass}`;
+    card.className = `glass-card fund-card ${bentoClass}${isGold ? ' gold-accent' : ''}`;
     card.style.cursor = 'pointer';
     card.title = 'View price chart';
     card.innerHTML = `
@@ -1271,14 +1281,30 @@ function renderEquityResults(stocks) {
         </div>
       </div>
 
-      <button class="btn btn-primary invest-stock-buy-btn" data-symbol="${stock.symbol}" style="width:100%; justify-content:center;">
-        Invest Now
-      </button>
+      <div class="fund-card-actions">
+        <button class="btn btn-chart invest-stock-chart-btn" data-symbol="${stock.symbol}" title="View price chart">
+          <i data-lucide="line-chart"></i><span>Chart</span>
+        </button>
+        <button class="btn btn-primary invest-stock-buy-btn" data-symbol="${stock.symbol}">
+          Invest Now
+        </button>
+      </div>
     `;
 
     card.addEventListener('click', () => openStockChartModal(stock));
 
     grid.appendChild(card);
+  });
+
+  if (window.lucide) window.lucide.createIcons();
+
+  document.querySelectorAll('.invest-stock-chart-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation(); // whole card already opens the chart; avoid double-handling
+      const symbol = btn.getAttribute('data-symbol');
+      const stock = stocks.find((s) => s.symbol === symbol);
+      if (stock) openStockChartModal(stock);
+    });
   });
 
   document.querySelectorAll('.invest-stock-buy-btn').forEach((btn) => {
@@ -1488,7 +1514,7 @@ function renderMutualFundResults(funds) {
 
     const isUp = fund.ytdReturn >= 0;
 
-    card.className = `glass-card fund-card ${bentoClass}`;
+    card.className = `glass-card fund-card ${bentoClass} mf-accent`;
     card.style.cursor = 'pointer';
     card.title = 'View NAV chart';
     card.innerHTML = `
@@ -1520,14 +1546,30 @@ function renderMutualFundResults(funds) {
         </div>
       </div>
 
-      <button class="btn btn-primary invest-mf-buy-btn" data-symbol="${fund.symbol}" style="width:100%; justify-content:center;">
-        Invest Now
-      </button>
+      <div class="fund-card-actions">
+        <button class="btn btn-chart invest-mf-chart-btn" data-symbol="${fund.symbol}" title="View NAV chart">
+          <i data-lucide="line-chart"></i><span>Chart</span>
+        </button>
+        <button class="btn btn-primary invest-mf-buy-btn" data-symbol="${fund.symbol}">
+          Invest Now
+        </button>
+      </div>
     `;
 
     card.addEventListener('click', () => openStockChartModal(fund));
 
     grid.appendChild(card);
+  });
+
+  if (window.lucide) window.lucide.createIcons();
+
+  document.querySelectorAll('.invest-mf-chart-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const symbol = btn.getAttribute('data-symbol');
+      const fund = funds.find((f) => f.symbol === symbol);
+      if (fund) openStockChartModal(fund);
+    });
   });
 
   document.querySelectorAll('.invest-mf-buy-btn').forEach((btn) => {
@@ -1798,48 +1840,98 @@ function renderGoalsGrid() {
     btn.addEventListener('click', () => {
       const gId = btn.getAttribute('data-goal-id');
       const goal = state.goals.find(g => g.id === gId);
-      
-      const amtStr = prompt(`Enter savings amount to deploy for target: ${goal.name}`, "10000");
-      const amt = parseFloat(amtStr);
-      if (!isNaN(amt) && amt > 0) {
-        goal.saved += amt;
-        
-        // Append transaction & notify
-        state.transactions.unshift({
-          type: "BUY",
-          assetName: `${goal.name} (Goal Savings Contribution)`,
-          date: "Just Now",
-          category: "mf",
-          amount: amt,
-          units: 1,
-          price: amt,
-          typeLabel: "Goal Contribution"
-        });
-        
-        state.notifications.unshift({
-          id: `n_goal_${Date.now()}`,
-          type: "success",
-          title: "Goal Updated",
-          description: `Successfully allocated ${formatRupee(amt)} to your ${goal.name} target.`,
-          time: "Just Now",
-          unread: true
-        });
-        
-        // Check milestone trigger
-        if (goal.saved >= goal.target) {
-          state.notifications.unshift({
-            id: `n_goal_comp_${Date.now()}`,
-            type: "success",
-            title: `Goal Achieved: ${goal.name}!`,
-            description: `Congratulations! You have completed your target goal savings of ${formatRupee(goal.target)}.`,
-            time: "Just Now",
-            unread: true
-          });
-        }
-        
-        renderAll();
-      }
+      openAddGoalCapitalModal(goal);
     });
+  });
+}
+
+// Add Capital to Goal modal — replaces a native prompt() with a proper card
+// so the amount input, quick-select chips, and confirm action all match the
+// rest of the app's visual language.
+let pendingGoalCapitalTarget = null;
+
+function openAddGoalCapitalModal(goal) {
+  pendingGoalCapitalTarget = goal;
+  document.getElementById('goal-capital-target-name').textContent = goal.name;
+
+  const input = document.getElementById('goal-capital-amount-input');
+  input.value = '10000';
+
+  document.querySelectorAll('.goal-capital-chip').forEach((chip) => {
+    chip.classList.toggle('active', chip.getAttribute('data-amount') === '10000');
+  });
+
+  document.getElementById('modal-add-goal-capital').classList.add('active');
+  input.focus();
+}
+
+function closeAddGoalCapitalModal() {
+  document.getElementById('modal-add-goal-capital').classList.remove('active');
+  pendingGoalCapitalTarget = null;
+}
+
+function setupAddGoalCapitalModal() {
+  const modal = document.getElementById('modal-add-goal-capital');
+  if (!modal) return;
+
+  const input = document.getElementById('goal-capital-amount-input');
+
+  document.getElementById('close-modal-add-goal-capital').addEventListener('click', closeAddGoalCapitalModal);
+  document.getElementById('goal-capital-cancel-btn').addEventListener('click', closeAddGoalCapitalModal);
+
+  document.querySelectorAll('.goal-capital-chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      input.value = chip.getAttribute('data-amount');
+      document.querySelectorAll('.goal-capital-chip').forEach((c) => c.classList.toggle('active', c === chip));
+    });
+  });
+
+  input.addEventListener('input', () => {
+    document.querySelectorAll('.goal-capital-chip').forEach((c) => c.classList.toggle('active', c.getAttribute('data-amount') === input.value));
+  });
+
+  document.getElementById('goal-capital-confirm-btn').addEventListener('click', () => {
+    const goal = pendingGoalCapitalTarget;
+    if (!goal) return;
+
+    const amt = parseFloat(input.value);
+    if (isNaN(amt) || amt <= 0) return;
+
+    goal.saved += amt;
+
+    state.transactions.unshift({
+      type: "BUY",
+      assetName: `${goal.name} (Goal Savings Contribution)`,
+      date: "Just Now",
+      category: "mf",
+      amount: amt,
+      units: 1,
+      price: amt,
+      typeLabel: "Goal Contribution"
+    });
+
+    state.notifications.unshift({
+      id: `n_goal_${Date.now()}`,
+      type: "success",
+      title: "Goal Updated",
+      description: `Successfully allocated ${formatRupee(amt)} to your ${goal.name} target.`,
+      time: "Just Now",
+      unread: true
+    });
+
+    if (goal.saved >= goal.target) {
+      state.notifications.unshift({
+        id: `n_goal_comp_${Date.now()}`,
+        type: "success",
+        title: `Goal Achieved: ${goal.name}!`,
+        description: `Congratulations! You have completed your target goal savings of ${formatRupee(goal.target)}.`,
+        time: "Just Now",
+        unread: true
+      });
+    }
+
+    closeAddGoalCapitalModal();
+    renderAll();
   });
 }
 
@@ -1954,18 +2046,19 @@ function renderProfile() {
   const container = document.getElementById('linked-accounts-container');
   if (container) {
     container.innerHTML = '';
-    state.consents.forEach(acc => {
+    const LINKED_ACCOUNT_ACCENTS = ['eq', 'mf', 'gold', 'fd', 'nps'];
+    state.consents.forEach((acc, i) => {
       const row = document.createElement('div');
       row.className = 'linked-account-row';
       row.innerHTML = `
         <div class="linked-account-info">
-          <div class="linked-account-logo">${acc.logo}</div>
+          <div class="linked-account-logo ${LINKED_ACCOUNT_ACCENTS[i % LINKED_ACCOUNT_ACCENTS.length]}">${acc.logo}</div>
           <div>
             <div class="linked-account-name">${acc.accountName}</div>
             <div class="linked-account-source">${acc.sourceType}</div>
           </div>
         </div>
-        <span class="badge badge-success">Linked</span>
+        <span class="badge badge-success"><i data-lucide="check-circle-2"></i>Linked</span>
       `;
       container.appendChild(row);
     });
@@ -1974,14 +2067,18 @@ function renderProfile() {
   // Render notifications setting toggles
   const settingsContainer = document.getElementById('notification-settings-list');
   if (settingsContainer) {
+    const TOGGLE_ICONS = { s1: 'scale', s2: 'calendar-clock', s3: 'newspaper', s4: 'target', s5: 'bell-dot' };
     settingsContainer.innerHTML = '';
     state.notificationSettings.forEach(set => {
       const row = document.createElement('div');
       row.className = 'toggle-setting-row';
       row.innerHTML = `
         <div class="toggle-setting-info">
-          <span class="toggle-setting-name">${set.name}</span>
-          <span class="toggle-setting-desc">${set.desc}</span>
+          <span class="toggle-setting-icon"><i data-lucide="${TOGGLE_ICONS[set.id] || 'bell'}"></i></span>
+          <span class="toggle-setting-text">
+            <span class="toggle-setting-name">${set.name}</span>
+            <span class="toggle-setting-desc">${set.desc}</span>
+          </span>
         </div>
         <label class="switch">
           <input type="checkbox" ${set.active ? 'checked' : ''} class="profile-setting-checkbox" data-setting-id="${set.id}">
@@ -2011,10 +2108,18 @@ function renderProfile() {
   // Dynamic Risk Profile descriptions
   const riskLabel = document.getElementById('profile-risk-label');
   const riskDesc = document.getElementById('profile-risk-desc');
+  const riskBanner = document.getElementById('profile-risk-banner');
   if (riskLabel && riskDesc) {
-    riskLabel.className = `risk-level-badge ${state.user.riskProfile.toLowerCase()}`;
+    const riskTier = state.user.riskProfile.toLowerCase();
+    riskLabel.className = `risk-level-badge ${riskTier}`;
     riskLabel.textContent = `${state.user.riskProfile} Risk Profile`;
-    
+
+    if (riskBanner) {
+      riskBanner.className = `risk-profile-banner ${riskTier}`;
+      const bannerIcon = { conservative: 'shield', moderate: 'trending-up', aggressive: 'flame' }[riskTier] || 'trending-up';
+      riskBanner.querySelector('.risk-profile-banner-icon').innerHTML = `<i data-lucide="${bannerIcon}"></i>`;
+    }
+
     if (state.user.riskProfile === 'Conservative') {
       riskDesc.textContent = "Your asset allocation targets steady growth and capital preservation. Your suggested model allocation is 30% equities / index funds, 60% FDs & debt instruments, and 10% gold / hedge assets.";
     } else if (state.user.riskProfile === 'Moderate') {
@@ -3892,53 +3997,61 @@ async function runPortfolioAnalysis() {
   }
 }
 
-const ANALYZER_RISK_COLOR = { Low: 'var(--color-success)', Moderate: 'var(--color-warning)', High: 'var(--color-danger, #dc2626)' };
+const ANALYZER_RISK_TONE = { Low: 'good', Moderate: 'warn', High: 'bad' };
+const ANALYZER_HEALTH_TONE = { Excellent: 'good', Good: 'good', Fair: 'warn', Average: 'warn', Poor: 'bad', Critical: 'bad' };
 
 function renderPortfolioAnalysisResult(result) {
   const resultEl = document.getElementById('portfolio-analyzer-result');
   const risk = result.risk_analysis;
   const rec = result.recommendations;
-  const riskColor = ANALYZER_RISK_COLOR[risk.overall_risk] || 'var(--text-primary)';
+  const riskTone = ANALYZER_RISK_TONE[risk.overall_risk] || 'neutral';
+  const healthTone = ANALYZER_HEALTH_TONE[result.health_label] || 'neutral';
 
   const warningsHtml = risk.warnings.length
-    ? `<ul style="margin:8px 0 0; padding-left:18px; font-size:0.78rem; color:var(--text-secondary); line-height:1.5;">
-        ${risk.warnings.map(w => `<li>${w}</li>`).join('')}
-      </ul>`
+    ? `<ul class="audit-detail-list warn">${risk.warnings.map(w => `<li><i data-lucide="alert-triangle"></i>${w}</li>`).join('')}</ul>`
     : '';
 
   const recommendationsHtml = rec.recommendations.length
-    ? `<ul style="margin:8px 0 0; padding-left:18px; font-size:0.78rem; line-height:1.5;">
-        ${rec.recommendations.map(r => `<li>${r}</li>`).join('')}
-      </ul>`
+    ? `<ul class="audit-detail-list good">${rec.recommendations.map(r => `<li><i data-lucide="lightbulb"></i>${r}</li>`).join('')}</ul>`
     : '';
 
   resultEl.innerHTML = `
-    <div style="display:flex; gap:10px; margin-bottom:14px;">
-      <div style="flex:1; text-align:center; padding:10px; border-radius:10px; background:rgba(37,99,235,0.06);">
-        <div style="font-size:1.3rem; font-weight:700;">${result.health_score}/100</div>
-        <div style="font-size:0.7rem; color:var(--text-secondary);">${result.health_label}</div>
+    <div class="analyzer-score-row">
+      <div class="analyzer-score-tile tone-${healthTone}">
+        <div class="analyzer-score-ring" style="--pct:${Math.min(result.health_score, 100)}%;">
+          <span>${result.health_score}</span>
+        </div>
+        <div class="analyzer-score-label">${result.health_label}</div>
       </div>
-      <div style="flex:1; text-align:center; padding:10px; border-radius:10px; background:rgba(37,99,235,0.06);">
-        <div style="font-size:1.3rem; font-weight:700; color:${riskColor};">${risk.overall_risk}</div>
-        <div style="font-size:0.7rem; color:var(--text-secondary);">Overall Risk</div>
+      <div class="analyzer-score-tile tone-${riskTone}">
+        <div class="analyzer-score-badge"><i data-lucide="shield-alert"></i></div>
+        <div class="analyzer-score-value">${risk.overall_risk}</div>
+        <div class="analyzer-score-label">Overall Risk</div>
       </div>
     </div>
 
-    <div style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:4px;">
-      Diversification Score: <strong style="color:var(--text-primary);">${risk.diversification_score}/100</strong>
+    <div class="analyzer-diversification">
+      <div class="analyzer-diversification-top">
+        <span><i data-lucide="pie-chart"></i>Diversification Score</span>
+        <strong>${risk.diversification_score}/100</strong>
+      </div>
+      <div class="analyzer-diversification-bar-bg">
+        <div class="analyzer-diversification-bar-fill" style="width:${risk.diversification_score}%;"></div>
+      </div>
     </div>
-    ${warningsHtml}
 
-    <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border-glass);">
-      <strong style="font-size:0.85rem;">AI Insight</strong>
-      <p style="font-size:0.8rem; line-height:1.5; margin-top:6px;">${rec.overall_summary}</p>
+    ${warningsHtml ? `<div class="analyzer-block"><p class="audit-detail-label">Warnings</p>${warningsHtml}</div>` : ''}
+
+    <div class="analyzer-insight-card">
+      <div class="analyzer-insight-header"><i data-lucide="sparkles"></i>AI Insight</div>
+      <p>${rec.overall_summary}</p>
       ${recommendationsHtml}
     </div>
 
-    <p style="font-size:0.68rem; color:var(--text-muted); margin-top:14px;">${rec.disclaimer}</p>
+    <p class="audit-detail-disclaimer">${rec.disclaimer}</p>
 
-    <button class="btn btn-secondary" id="portfolio-analyzer-rerun-btn" style="width:100%; justify-content:center; margin-top:12px;">
-      Re-analyze
+    <button class="btn btn-secondary analyzer-cta" id="portfolio-analyzer-rerun-btn">
+      <i data-lucide="refresh-cw"></i><span>Re-analyze</span>
     </button>
   `;
 
@@ -3978,6 +4091,13 @@ async function renderAuditLog() {
 
     const orderedEntries = entries.slice().reverse();
 
+    const AUDIT_TONE = {
+      Low: 'good', Good: 'good', Excellent: 'good',
+      Moderate: 'warn', Fair: 'warn', Average: 'warn',
+      High: 'bad', Poor: 'bad', Critical: 'bad',
+    };
+    const toneOf = (label) => AUDIT_TONE[label] || 'neutral';
+
     list.innerHTML = orderedEntries
       .map((entry, i) => {
         const time = new Date(entry.timestamp).toLocaleString();
@@ -3991,25 +4111,22 @@ async function renderAuditLog() {
         const userName = state.user?.fullName ?? entry.user_id ?? 'N/A';
 
         return `
-          <div style="border:1px solid var(--border-color, rgba(0,0,0,0.08)); border-radius:10px; overflow:hidden; flex-shrink:0;">
+          <div class="audit-log-entry tone-${toneOf(healthLabel)}">
             <button class="audit-log-row-toggle" data-audit-index="${i}">
-              <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.78rem; color:var(--text-secondary); margin-bottom:4px;">
-                <span>${time}</span>
-                <div style="display:flex; align-items:center; gap:8px;">
-                  <span title="${sessionIdFull}">Session: ${sessionIdShort}</span>
-                  <i data-lucide="chevron-down" class="audit-log-chevron" style="width:14px; height:14px; transition: transform 0.2s;"></i>
+              <div class="audit-log-row-top">
+                <span class="audit-log-time"><i data-lucide="clock"></i>${time}</span>
+                <div class="audit-log-row-meta">
+                  <span class="audit-log-session" title="${sessionIdFull}">Session: ${sessionIdShort}</span>
+                  <i data-lucide="chevron-right" class="audit-log-chevron"></i>
                 </div>
               </div>
-              <div style="font-size:0.85rem;">
-                <strong>User:</strong> ${userName} &nbsp;·&nbsp;
-                <strong>Holdings:</strong> ${holdingsCount} &nbsp;·&nbsp;
-                <strong>Risk:</strong> ${overallRisk} &nbsp;·&nbsp;
-                <strong>Health:</strong> ${healthLabel}
+              <div class="audit-log-row-main">
+                <span class="audit-log-user"><i data-lucide="user-round"></i>${userName}</span>
+                <span class="audit-log-badge neutral"><i data-lucide="layers"></i>${holdingsCount} holdings</span>
+                <span class="audit-log-badge ${toneOf(overallRisk)}">Risk: ${overallRisk}</span>
+                <span class="audit-log-badge ${toneOf(healthLabel)}">Health: ${healthLabel}</span>
               </div>
             </button>
-            <div class="audit-log-detail" id="audit-log-detail-${i}" style="display:none; padding:0 14px 14px; border-top:1px solid var(--border-color, rgba(0,0,0,0.08));">
-              ${formatAuditLogDetail(entry)}
-            </div>
           </div>
         `;
       })
@@ -4017,12 +4134,8 @@ async function renderAuditLog() {
 
     list.querySelectorAll('.audit-log-row-toggle').forEach((btn) => {
       btn.addEventListener('click', () => {
-        const idx = btn.dataset.auditIndex;
-        const detail = document.getElementById(`audit-log-detail-${idx}`);
-        const chevron = btn.querySelector('.audit-log-chevron');
-        const isOpen = detail.style.display !== 'none';
-        detail.style.display = isOpen ? 'none' : 'block';
-        chevron.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+        const idx = Number(btn.dataset.auditIndex);
+        openAuditDetailModal(orderedEntries[idx], toneOf);
       });
     });
 
@@ -4030,6 +4143,37 @@ async function renderAuditLog() {
   } catch (err) {
     list.innerHTML = `<p style="font-size:0.8rem; color:var(--color-danger, #d33);">Could not load audit log. The Portfolio Analyzer service may be unavailable.</p>`;
   }
+}
+
+// Opens the Audit Log Entry Detail modal, populating the header/badges/body
+// from the given entry. `toneOf` maps a risk/health label to good/warn/bad
+// so the modal's badges match the color coding used in the list row.
+function openAuditDetailModal(entry, toneOf) {
+  const time = new Date(entry.timestamp).toLocaleString();
+  const risk = entry.response?.risk_analysis;
+  const healthLabel = entry.response?.health_label ?? 'N/A';
+  const overallRisk = risk?.overall_risk ?? 'N/A';
+  const sessionIdFull = entry.session_id ?? 'N/A';
+  const userName = state.user?.fullName ?? entry.user_id ?? 'N/A';
+
+  document.getElementById('audit-detail-meta').textContent = `${time} · Session ${sessionIdFull}`;
+  document.getElementById('audit-detail-badges').innerHTML = `
+    <span class="audit-log-badge neutral"><i data-lucide="user-round"></i>${userName}</span>
+    <span class="audit-log-badge ${toneOf(overallRisk)}">Risk: ${overallRisk}</span>
+    <span class="audit-log-badge ${toneOf(healthLabel)}">Health: ${healthLabel}</span>
+  `;
+  document.getElementById('audit-detail-body').innerHTML = formatAuditLogDetail(entry);
+
+  document.getElementById('modal-audit-detail').classList.add('active');
+  if (window.lucide) lucide.createIcons();
+}
+
+function setupAuditDetailModal() {
+  const closeBtn = document.getElementById('close-modal-audit-detail');
+  if (!closeBtn) return;
+  closeBtn.addEventListener('click', () => {
+    document.getElementById('modal-audit-detail').classList.remove('active');
+  });
 }
 
 function formatAuditLogDetail(entry) {
@@ -4043,7 +4187,7 @@ function formatAuditLogDetail(entry) {
   const isLegacyFormat = (risk && typeof risk !== 'object') || (rec && typeof rec !== 'object') || (pa && typeof pa !== 'object');
   if (isLegacyFormat) {
     return `
-      <div style="font-size:0.78rem; line-height:1.6; padding-top:10px; color:var(--text-secondary);">
+      <div class="audit-detail-empty">
         Detailed breakdown isn't available for this entry — it was logged before a data formatting fix.
         Run a new analysis to see full details here.
       </div>
@@ -4053,68 +4197,80 @@ function formatAuditLogDetail(entry) {
   const holdingsRows = holdings
     .map(h => `
       <tr>
-        <td style="padding:4px 8px 4px 0;">${h.asset_name}</td>
-        <td style="padding:4px 8px;">${h.asset_type}</td>
-        <td style="padding:4px 8px;">${h.sector}</td>
-        <td style="padding:4px 8px; text-align:right;">${h.quantity}</td>
-        <td style="padding:4px 0 4px 8px; text-align:right;">${formatRupee(h.current_value ?? h.quantity * h.current_price)}</td>
+        <td>${h.asset_name}</td>
+        <td><span class="audit-detail-pill">${h.asset_type}</span></td>
+        <td>${h.sector}</td>
+        <td class="num">${h.quantity}</td>
+        <td class="num">${formatRupee(h.current_value ?? h.quantity * h.current_price)}</td>
       </tr>
     `)
     .join('');
 
   const warningsHtml = risk?.warnings?.length
-    ? `<ul style="margin:4px 0 0; padding-left:16px;">${risk.warnings.map(w => `<li>${w}</li>`).join('')}</ul>`
-    : '<span style="color:var(--text-secondary);">None</span>';
+    ? `<ul class="audit-detail-list warn">${risk.warnings.map(w => `<li><i data-lucide="alert-triangle"></i>${w}</li>`).join('')}</ul>`
+    : '<span class="audit-detail-muted">No warnings flagged</span>';
 
   const sectorConcentrationHtml = risk?.sector_concentration
-    ? Object.entries(risk.sector_concentration).map(([sector, pct]) => `${sector}: ${pct}%`).join(' · ')
-    : 'N/A';
+    ? `<div class="audit-detail-tags">${Object.entries(risk.sector_concentration).map(([sector, pct]) => `<span>${sector} · ${pct}%</span>`).join('')}</div>`
+    : '<span class="audit-detail-muted">N/A</span>';
 
   const recommendationsHtml = rec?.recommendations?.length
-    ? `<ul style="margin:4px 0 0; padding-left:16px;">${rec.recommendations.map(r => `<li>${r}</li>`).join('')}</ul>`
-    : '<span style="color:var(--text-secondary);">None</span>';
+    ? `<ul class="audit-detail-list good">${rec.recommendations.map(r => `<li><i data-lucide="lightbulb"></i>${r}</li>`).join('')}</ul>`
+    : '<span class="audit-detail-muted">No recommendations</span>';
 
   return `
-    <div style="font-size:0.78rem; line-height:1.6; padding-top:10px;">
-      <strong>Holdings submitted</strong>
-      <table style="width:100%; border-collapse:collapse; margin:6px 0 12px; font-size:0.76rem;">
-        <thead>
-          <tr style="color:var(--text-secondary); text-align:left;">
-            <th style="padding:2px 8px 2px 0;">Asset</th>
-            <th style="padding:2px 8px;">Type</th>
-            <th style="padding:2px 8px;">Sector</th>
-            <th style="padding:2px 8px; text-align:right;">Qty</th>
-            <th style="padding:2px 0 2px 8px; text-align:right;">Value</th>
-          </tr>
-        </thead>
-        <tbody>${holdingsRows}</tbody>
-      </table>
+    <div class="audit-detail-section">
+      <h5><i data-lucide="wallet"></i>Holdings submitted</h5>
+      <div class="audit-detail-table-wrap">
+        <table class="audit-detail-table">
+          <thead>
+            <tr>
+              <th>Asset</th>
+              <th>Type</th>
+              <th>Sector</th>
+              <th class="num">Qty</th>
+              <th class="num">Value</th>
+            </tr>
+          </thead>
+          <tbody>${holdingsRows}</tbody>
+        </table>
+      </div>
+    </div>
 
-      <strong>Portfolio Analysis</strong>
-      <p style="margin:4px 0 12px;">
-        Total value: <strong>${pa ? formatRupee(pa.total_portfolio_value) : 'N/A'}</strong> ·
-        Largest holding: <strong>${pa?.largest_holding ?? 'N/A'}</strong>
-        (${pa ? pa.largest_holding_percentage.toFixed(1) : '0'}%)
-      </p>
+    <div class="audit-detail-stat-row">
+      <div class="audit-detail-stat">
+        <span>Total portfolio value</span>
+        <strong>${pa ? formatRupee(pa.total_portfolio_value) : 'N/A'}</strong>
+      </div>
+      <div class="audit-detail-stat">
+        <span>Largest holding</span>
+        <strong>${pa?.largest_holding ?? 'N/A'} <small>(${pa ? pa.largest_holding_percentage.toFixed(1) : '0'}%)</small></strong>
+      </div>
+      <div class="audit-detail-stat">
+        <span>Diversification score</span>
+        <strong>${risk?.diversification_score ?? 'N/A'}/100</strong>
+      </div>
+    </div>
 
-      <strong>Risk Analysis</strong>
-      <p style="margin:4px 0 6px;">
-        Concentration risk: <strong>${risk?.concentration_risk ?? 'N/A'}</strong> ·
-        Diversification score: <strong>${risk?.diversification_score ?? 'N/A'}/100</strong>
-      </p>
-      <p style="margin:0 0 4px; color:var(--text-secondary);">Sector concentration: ${sectorConcentrationHtml}</p>
-      <div style="margin-bottom:12px;">Warnings: ${warningsHtml}</div>
+    <div class="audit-detail-section">
+      <h5><i data-lucide="shield-alert"></i>Risk Analysis</h5>
+      <p class="audit-detail-p">Concentration risk: <strong>${risk?.concentration_risk ?? 'N/A'}</strong></p>
+      <p class="audit-detail-label">Sector concentration</p>
+      ${sectorConcentrationHtml}
+      <p class="audit-detail-label" style="margin-top:12px;">Warnings</p>
+      ${warningsHtml}
+    </div>
 
-      <strong>AI Recommendations</strong>
-      <p style="margin:4px 0 6px;">${rec?.overall_summary ?? 'N/A'}</p>
+    <div class="audit-detail-section">
+      <h5><i data-lucide="sparkles"></i>AI Recommendations</h5>
+      <p class="audit-detail-p">${rec?.overall_summary ?? 'N/A'}</p>
       ${recommendationsHtml}
+      <p class="audit-detail-disclaimer">${rec?.disclaimer ?? ''}</p>
+    </div>
 
-      <p style="margin-top:12px; color:var(--text-muted); font-size:0.7rem;">${rec?.disclaimer ?? ''}</p>
-
-      <p style="margin-top:8px; padding-top:8px; border-top:1px dashed var(--border-color, rgba(0,0,0,0.08)); color:var(--text-muted); font-size:0.68rem; word-break:break-all;">
-        Analyzer version: <strong>${entry.analyzer_version ?? 'N/A'}</strong> ·
-        Response hash (SHA-256): <code>${entry.response_hash ?? 'N/A'}</code>
-      </p>
+    <div class="audit-detail-footer">
+      Analyzer version: <strong>${entry.analyzer_version ?? 'N/A'}</strong> ·
+      Response hash (SHA-256): <code>${entry.response_hash ?? 'N/A'}</code>
     </div>
   `;
 }
@@ -4170,7 +4326,9 @@ document.addEventListener('DOMContentLoaded', () => {
   renderQuiz();
   setupFloatingChatWidget();
   setupAuditLog();
+  setupAuditDetailModal();
   setupPortfolioAnalyzer();
+  setupAddGoalCapitalModal();
   
   // Close welcome nudge card alert logic
   const closeNudgeBtn = document.getElementById('close-dashboard-nudge');

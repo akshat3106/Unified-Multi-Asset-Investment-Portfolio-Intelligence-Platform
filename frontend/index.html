@@ -381,28 +381,33 @@
               <!-- Risk profile card -->
               <div class="glass-card">
                 <div class="card-header-row">
-                  <h4 class="card-title">Risk Profile</h4>
+                  <h4 class="card-title"><span class="card-title-icon"><i data-lucide="gauge"></i></span>Risk Profile</h4>
                 </div>
-                <div class="risk-level-badge moderate" id="profile-risk-label">Moderate Risk Tolerance</div>
+                <div class="risk-profile-banner moderate" id="profile-risk-banner">
+                  <span class="risk-profile-banner-icon"><i data-lucide="trending-up"></i></span>
+                  <div>
+                    <div class="risk-level-badge moderate" id="profile-risk-label">Moderate Risk Tolerance</div>
+                  </div>
+                </div>
                 <p class="risk-desc" id="profile-risk-desc">
                   You are comfortable with steady growth and moderate short-term fluctuations. Your suggested model
                   allocation is 50% equities &amp; equity mutual funds, 30% fixed deposits/debt, and 20% gold/hedges.
                 </p>
-                <button class="btn btn-secondary" id="profile-retake-quiz-btn">
-                  Retake Risk Quiz
+                <button class="btn btn-secondary profile-pill-btn" id="profile-retake-quiz-btn">
+                  <i data-lucide="rotate-ccw"></i> Retake Risk Quiz
                 </button>
               </div>
 
               <!-- Danger zone: Delete Account -->
-              <div class="glass-card" style="border:1px solid rgba(220,38,38,0.25);">
+              <div class="glass-card danger-zone-card">
                 <div class="card-header-row">
-                  <h4 class="card-title" style="color:#dc2626;">Delete Account</h4>
+                  <h4 class="card-title"><span class="card-title-icon danger"><i data-lucide="alert-octagon"></i></span>Delete Account</h4>
                 </div>
                 <p style="color:var(--text-secondary); font-size:0.85rem; margin:8px 0 16px;">
                   Permanently delete your AssetBridge account, including all linked consents, portfolio data, and preferences. This action cannot be undone.
                 </p>
-                <button class="btn" id="profile-delete-account-btn" style="background:#dc2626; color:#fff;">
-                  <i data-lucide="trash-2" style="width:14px; height:14px;"></i> Delete Account
+                <button class="btn danger-btn profile-pill-btn" id="profile-delete-account-btn">
+                  <i data-lucide="trash-2"></i> Delete Account
                 </button>
               </div>
 
@@ -414,11 +419,7 @@
               <!-- Linked accounts card -->
               <div class="glass-card">
                 <div class="card-header-row">
-                  <h4 class="card-title">Linked Data Consents</h4>
-                  <!-- <button class="btn btn-secondary" id="profile-link-consent-btn"
-                    style="padding:6px 12px; font-size:0.75rem;">
-                    <i data-lucide="plus" style="width:14px;height:14px;"></i> Link More
-                  </button> -->
+                  <h4 class="card-title"><span class="card-title-icon"><i data-lucide="link-2"></i></span>Linked Data Consents</h4>
                 </div>
 
                 <div id="linked-accounts-container">
@@ -429,7 +430,7 @@
               <!-- Notification toggles settings -->
               <div class="glass-card">
                 <div class="card-header-row" style="margin-bottom:20px;">
-                  <h4 class="card-title">Alert &amp; Drift Rules</h4>
+                  <h4 class="card-title"><span class="card-title-icon"><i data-lucide="bell-ring"></i></span>Alert &amp; Drift Rules</h4>
                 </div>
 
                 <div class="toggle-settings-list" id="notification-settings-list">
@@ -731,7 +732,7 @@
             <!-- Performance Chart – hero (6/12 cols × 2 rows) -->
             <div class="glass-card b-c3 b-r2">
               <div class="card-header-row">
-                <h4 class="card-title">Portfolio Performance</h4>
+                <h4 class="card-title"><span class="card-title-icon"><i data-lucide="line-chart"></i></span>Portfolio Performance</h4>
                 <div class="timeframe-selector">
                   <button class="tf-btn" data-tf="1w">1W</button>
                   <button class="tf-btn" data-tf="1m">1M</button>
@@ -779,9 +780,9 @@
             <!-- Holdings Breakdown – sidebar (6/12 cols × 2 rows) -->
             <div class="glass-card b-c3 b-r2" style="display:flex; flex-direction:column; align-self:start;">
               <div class="card-header-row">
-                <h4 class="card-title">Holdings</h4>
+                <h4 class="card-title"><span class="card-title-icon"><i data-lucide="layers"></i></span>Holdings</h4>
                 <div style="display:flex; gap:8px;">
-                  <select class="numeric-input" id="portfolio-sort-select" style="padding:6px 10px; font-size:0.75rem;">
+                  <select class="holdings-sort-select" id="portfolio-sort-select">
                     <option value="value">Value ↓</option>
                     <option value="return">Returns %</option>
                     <option value="name">Name</option>
@@ -789,9 +790,8 @@
                 </div>
               </div>
               <div style="display:flex; gap:8px; margin-bottom:10px;">
-                <button class="btn btn-secondary" id="portfolio-export-csv-btn"
-                  style="padding:6px 12px; font-size:0.75rem; width:100%; justify-content:center;">
-                  <i data-lucide="download" style="width:14px;height:14px;"></i> Export CSV
+                <button class="btn btn-secondary holdings-export-btn" id="portfolio-export-csv-btn">
+                  <i data-lucide="download"></i> Export CSV
                 </button>
               </div>
               <div style="max-height:560px; overflow-y:auto;">
@@ -828,20 +828,51 @@
           <div class="chat-layout">
 
             <!-- Left panel: Portfolio Analyzer (Wider) -->
-            <div class="glass-card" style="border-color: rgba(59, 130, 246, 0.2);">
-              <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
-                <i data-lucide="scan-search" style="color:var(--color-equity);"></i>
-                <strong style="font-size:1rem;">Portfolio Analyzer</strong>
+            <div class="glass-card analyzer-panel">
+              <div class="analyzer-panel-header">
+                <i data-lucide="scan-search"></i>
+                <strong>Portfolio Analyzer</strong>
               </div>
 
               <div id="portfolio-analyzer-idle">
-                <p style="font-size:0.85rem; color:var(--text-secondary); line-height:1.5; margin-bottom:18px;">
-                  Run an AI-powered diversification and risk analysis on your current holdings, with personalised
-                  recommendations.
-                </p>
-                <button class="btn btn-primary" id="portfolio-analyzer-run-btn"
-                  style="width:100%; justify-content:center;">
-                  Analyze My Portfolio
+                <div class="analyzer-hero">
+                  <div class="analyzer-hero-icon">
+                    <i data-lucide="sparkles"></i>
+                  </div>
+                  <h4>Get an instant AI health check on your portfolio</h4>
+                  <p>
+                    Run a diversification and risk analysis on your current holdings and get personalised,
+                    explainable recommendations in seconds.
+                  </p>
+                </div>
+
+                <ul class="analyzer-feature-list">
+                  <li>
+                    <span class="analyzer-feature-icon"><i data-lucide="pie-chart"></i></span>
+                    <div>
+                      <strong>Diversification score</strong>
+                      <span>See how balanced your holdings are across asset classes</span>
+                    </div>
+                  </li>
+                  <li>
+                    <span class="analyzer-feature-icon"><i data-lucide="shield-alert"></i></span>
+                    <div>
+                      <strong>Risk analysis</strong>
+                      <span>Understand where your portfolio is over- or under-exposed</span>
+                    </div>
+                  </li>
+                  <li>
+                    <span class="analyzer-feature-icon"><i data-lucide="lightbulb"></i></span>
+                    <div>
+                      <strong>Personalised recommendations</strong>
+                      <span>Actionable suggestions to improve your portfolio health</span>
+                    </div>
+                  </li>
+                </ul>
+
+                <button class="btn btn-primary analyzer-cta" id="portfolio-analyzer-run-btn">
+                  <i data-lucide="wand-sparkles"></i>
+                  <span>Analyze My Portfolio</span>
                 </button>
               </div>
 
@@ -916,20 +947,20 @@
           </div>
 
           <!-- Audit Log Section (Portfolio Analyzer request/response trail) -->
-          <div class="glass-card" id="audit-log-panel" style="margin-top: 20px;">
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
-              <div style="display:flex; align-items:center; gap:10px;">
-                <i data-lucide="shield-check" style="color:var(--color-equity);"></i>
-                <strong style="font-size:0.95rem;">Portfolio Analyzer Audit Log</strong>
+          <div class="glass-card audit-log-panel" id="audit-log-panel" style="margin-top: 20px;">
+            <div class="audit-log-panel-header">
+              <div class="audit-log-panel-title">
+                <span class="audit-log-panel-icon"><i data-lucide="shield-check"></i></span>
+                <strong>Portfolio Analyzer Audit Log</strong>
               </div>
-              <button class="btn btn-secondary" id="audit-log-refresh-btn" style="padding:6px 14px; font-size:0.8rem;">
-                <i data-lucide="refresh-cw" style="width:14px; height:14px;"></i> Refresh
+              <button class="btn btn-secondary audit-log-refresh-btn" id="audit-log-refresh-btn">
+                <i data-lucide="refresh-cw"></i> Refresh
               </button>
             </div>
-            <p style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:14px;">
+            <p class="audit-log-panel-desc">
               A read-only trail of every portfolio analysis request processed by the AI Portfolio Analyzer, for transparency and audit purposes.
             </p>
-            <div id="audit-log-list" style="display:flex; flex-direction:column; gap:10px; max-height:360px; overflow-y:auto;">
+            <div id="audit-log-list" class="audit-log-list">
               <!-- Populated via JS -->
               <p style="font-size:0.8rem; color:var(--text-secondary);">Loading audit log...</p>
             </div>
@@ -1180,7 +1211,11 @@
       </p>
       <div class="broker-choice-options">
         <button class="broker-choice-btn" id="broker-choice-zerodha">
-          <span class="broker-choice-logo" style="background:#387ed1;">Z</span>
+          <span class="broker-choice-logo" style="background:#387ed1;">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M5 6H19L11.5 13H19L6 18L9.5 12H5L5 6Z" fill="white"/>
+            </svg>
+          </span>
           <span class="broker-choice-text">
             <strong>Zerodha</strong>
             <small>Open via Kite</small>
@@ -1188,12 +1223,65 @@
           <i data-lucide="arrow-up-right"></i>
         </button>
         <button class="broker-choice-btn" id="broker-choice-groww">
-          <span class="broker-choice-logo" style="background:#00d09c;">G</span>
+          <span class="broker-choice-logo" style="background:#00d09c;">
+            <span>G</span>
+            <img src="https://groww.in/favicon.ico" alt="" loading="lazy" onerror="this.remove()">
+          </span>
           <span class="broker-choice-text">
             <strong>Groww</strong>
             <small>Open via Groww</small>
           </span>
           <i data-lucide="arrow-up-right"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Audit Log Entry Detail Modal -->
+  <div class="modal-overlay" id="modal-audit-detail">
+    <div class="modal-content modal-content-wide audit-detail-modal">
+      <div class="modal-close-btn" id="close-modal-audit-detail"><i data-lucide="x"></i></div>
+      <div class="audit-detail-header">
+        <span class="audit-detail-header-icon"><i data-lucide="shield-check"></i></span>
+        <div>
+          <h3 class="modal-title" style="margin-bottom:2px;">Analysis Report</h3>
+          <p class="audit-detail-header-meta" id="audit-detail-meta"></p>
+        </div>
+      </div>
+      <div class="audit-detail-badges" id="audit-detail-badges"></div>
+      <div class="audit-detail-body" id="audit-detail-body">
+        <!-- Populated via JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Capital to Goal Modal -->
+  <div class="modal-overlay" id="modal-add-goal-capital">
+    <div class="modal-content goal-capital-modal">
+      <div class="modal-close-btn" id="close-modal-add-goal-capital"><i data-lucide="x"></i></div>
+      <div class="goal-capital-icon"><i data-lucide="piggy-bank"></i></div>
+      <h3 class="modal-title">Add Capital</h3>
+      <p class="goal-capital-subtitle">Deploy savings toward <strong id="goal-capital-target-name">your target</strong></p>
+
+      <div class="modal-form-group">
+        <label for="goal-capital-amount-input">Amount to add</label>
+        <div class="goal-capital-input-wrap">
+          <span class="goal-capital-currency">₹</span>
+          <input type="number" id="goal-capital-amount-input" min="1" step="1" placeholder="10000" />
+        </div>
+      </div>
+
+      <div class="goal-capital-quick-amounts" id="goal-capital-quick-amounts">
+        <button type="button" class="goal-capital-chip" data-amount="5000">₹5,000</button>
+        <button type="button" class="goal-capital-chip" data-amount="10000">₹10,000</button>
+        <button type="button" class="goal-capital-chip" data-amount="25000">₹25,000</button>
+        <button type="button" class="goal-capital-chip" data-amount="50000">₹50,000</button>
+      </div>
+
+      <div class="modal-footer-actions">
+        <button class="btn btn-secondary" id="goal-capital-cancel-btn">Cancel</button>
+        <button class="btn btn-primary" id="goal-capital-confirm-btn">
+          <i data-lucide="check"></i> Deploy Capital
         </button>
       </div>
     </div>
